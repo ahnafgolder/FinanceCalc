@@ -44,10 +44,20 @@ export async function DELETE(request, { params }) {
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     await dbConnect();
 
-    const bill = await Bill.findOneAndDelete({ _id: params.id, userId: session.user.id });
+    const bill = await Bill.findOne({ _id: params.id, userId: session.user.id });
     if (!bill) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    await Payment.deleteMany({ billId: params.id });
-    return NextResponse.json({ message: 'Deleted' });
+
+    // Block deletion if payments exist against this bill
+    const paymentCount = await Payment.countDocuments({ billId: params.id });
+    if (paymentCount > 0) {
+      return NextResponse.json(
+        { error: `Cannot delete — this bill has ${paymentCount} payment(s) recorded. Delete the payments first.` },
+        { status: 409 }
+      );
+    }
+
+    await bill.deleteOne();
+    return NextResponse.json({ message: 'Bill deleted successfully' });
   } catch (error) {
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }

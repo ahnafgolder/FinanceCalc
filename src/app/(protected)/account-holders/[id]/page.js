@@ -92,6 +92,23 @@ export default function AccountHolderDetail() {
     setPaySaving(false);
   };
 
+  // ── Delete Bill ──
+  const handleDeleteBill = async (billId) => {
+    if (!confirm('Delete this bill? (Only allowed if no payments exist)')) return;
+    const res = await fetch(`/api/bills/${billId}`, { method: 'DELETE' });
+    const d = await res.json();
+    if (!res.ok) { alert(d.error); return; }
+    fetchData();
+  };
+
+  // ── Delete Payment ──
+  const handleDeletePayment = async (paymentId) => {
+    if (!confirm('Delete this payment? The bill status will be recalculated.')) return;
+    const res = await fetch(`/api/payments/${paymentId}`, { method: 'DELETE' });
+    if (!res.ok) { alert('Failed to delete payment'); return; }
+    fetchData();
+  };
+
   // ── Generate Report ──
   const openReport = (mode) => {
     if (mode === 'all') {
@@ -180,15 +197,16 @@ export default function AccountHolderDetail() {
         </div>
         {data.bills?.length > 0 ? (
           <div className="card"><div className="table-container"><table>
-            <thead><tr><th>Bill #</th><th>Description</th><th>Amount</th><th>Due Date</th><th>Date</th><th>Status</th></tr></thead>
+            <thead><tr><th>Bill #</th><th>Description</th><th>Amount</th><th>Due Date</th><th>Date</th><th>Status</th><th></th></tr></thead>
             <tbody>{data.bills.map(b => (
-              <tr key={b._id} onClick={() => router.push(`/bills/${b._id}`)} style={{ cursor: 'pointer' }}>
-                <td style={{ color: 'var(--accent)' }}>{b.billNumber}</td>
+              <tr key={b._id}>
+                <td style={{ color: 'var(--accent)', cursor: 'pointer' }} onClick={() => router.push(`/bills/${b._id}`)}>{b.billNumber}</td>
                 <td>{b.description || '—'}</td>
                 <td>{fmt(b.totalAmount)}</td>
                 <td>{b.dueDate ? fmtDate(b.dueDate) : '—'}</td>
                 <td>{fmtDate(b.createdAt)}</td>
                 <td><span className={`badge badge-${b.status}`}>{b.status}</span></td>
+                <td><button className="btn btn-danger btn-sm btn-icon" onClick={() => handleDeleteBill(b._id)} title={b.status !== 'unpaid' ? 'Delete payments first' : 'Delete bill'}>×</button></td>
               </tr>
             ))}</tbody>
           </table></div></div>
@@ -203,7 +221,7 @@ export default function AccountHolderDetail() {
         </div>
         {data.payments?.length > 0 ? (
           <div className="card"><div className="table-container"><table>
-            <thead><tr><th>Date</th><th>Bill</th><th>Amount</th><th>Method</th><th>Reference</th><th>Note</th></tr></thead>
+            <thead><tr><th>Date</th><th>Bill</th><th>Amount</th><th>Method</th><th>Reference</th><th>Note</th><th></th></tr></thead>
             <tbody>{data.payments.map(p => (
               <tr key={p._id}>
                 <td>{fmtDate(p.paymentDate)}</td>
@@ -212,6 +230,7 @@ export default function AccountHolderDetail() {
                 <td>{p.paymentMethod?.replace('_', ' ')}</td>
                 <td>{p.referenceNumber || '—'}</td>
                 <td>{p.note || '—'}</td>
+                <td><button className="btn btn-danger btn-sm btn-icon" onClick={() => handleDeletePayment(p._id)} title="Delete payment">×</button></td>
               </tr>
             ))}</tbody>
           </table></div></div>
