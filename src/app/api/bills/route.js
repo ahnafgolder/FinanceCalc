@@ -1,0 +1,47 @@
+import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import dbConnect from '@/lib/mongoose';
+import Bill from '@/models/Bill';
+import Payment from '@/models/Payment';
+
+export async function GET(request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    await dbConnect();
+
+    const { searchParams } = new URL(request.url);
+    const query = { userId: session.user.id };
+    if (searchParams.get('status')) query.status = searchParams.get('status');
+    if (searchParams.get('accountHolderId')) query.accountHolderId = searchParams.get('accountHolderId');
+
+    const bills = await Bill.find(query).sort({ createdAt: -1 }).populate('accountHolderId', 'name');
+    return NextResponse.json(bills);
+  } catch (error) {
+    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+  }
+}
+
+export async function POST(request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    await dbConnect();
+
+    const body = await request.json();
+
+    // Auto-generate bill number
+    const count = await Bill.countDocuments({ userId: session.user.id });
+    const billNumber = `BILL-${String(count + 1).padStart(4, '0')}`;
+
+    const bill = await Bill.create({ ...body, billNumber, userId: session.user.id });
+    return NextResponse.json(bill, { status: 201 });
+  } catch (error) {
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(e => e.message);
+      return NextResponse.json({ error: messages.join(', ') }, { status: 400 });
+    }
+    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+  }
+}
