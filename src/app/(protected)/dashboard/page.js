@@ -27,25 +27,25 @@ export default function Dashboard() {
       </div>
 
       <div className="stats-grid">
-        <div className="stat-card accent">
-          <div className="stat-label">Total Outstanding</div>
-          <div className="stat-value" style={{ color: 'var(--accent)' }}>{fmt(s.totalOutstanding)}</div>
-          <div className="stat-sub">{s.unpaidBills || 0} unpaid bills</div>
-        </div>
         <div className="stat-card success">
-          <div className="stat-label">Total Paid</div>
-          <div className="stat-value" style={{ color: 'var(--success)' }}>{fmt(s.totalPaid)}</div>
-          <div className="stat-sub">Across all time</div>
-        </div>
-        <div className="stat-card info">
-          <div className="stat-label">This Month Bills</div>
-          <div className="stat-value" style={{ color: 'var(--info)' }}>{fmt(s.monthBillAmount)}</div>
-          <div className="stat-sub">Paid {fmt(s.monthPaid)} this month</div>
+          <div className="stat-label">Total Collected</div>
+          <div className="stat-value" style={{ color: 'var(--success)' }}>{fmt(s.totalCollected)}</div>
+          <div className="stat-sub">Money Received</div>
         </div>
         <div className="stat-card danger">
-          <div className="stat-label">Account Holders</div>
-          <div className="stat-value" style={{ color: 'var(--text-primary)' }}>{s.totalHolders || 0}</div>
-          <div className="stat-sub">{s.totalBills || 0} total bills</div>
+          <div className="stat-label">Total Paid Out</div>
+          <div className="stat-value" style={{ color: 'var(--danger)' }}>{fmt(s.totalPaidOut)}</div>
+          <div className="stat-sub">Money Sent</div>
+        </div>
+        <div className="stat-card info">
+          <div className="stat-label">Outstanding Receivables</div>
+          <div className="stat-value" style={{ color: 'var(--info)' }}>{fmt(s.outstandingReceivable)}</div>
+          <div className="stat-sub">To be collected</div>
+        </div>
+        <div className="stat-card accent">
+          <div className="stat-label">Outstanding Payables</div>
+          <div className="stat-value" style={{ color: 'var(--accent)' }}>{fmt(s.outstandingPayable)}</div>
+          <div className="stat-sub">To be paid</div>
         </div>
       </div>
 

@@ -45,7 +45,7 @@ export default function AccountHolders() {
         <div className="card">
           <div className="table-container">
             <table>
-              <thead><tr><th>Name</th><th>Type</th><th>Bank</th><th>Total Billed</th><th>Total Paid</th><th>Outstanding</th></tr></thead>
+              <thead><tr><th>Name</th><th>Type</th><th>Bank</th><th>Total Billed</th><th>Collected</th><th>Paid Out</th><th>Outstanding</th></tr></thead>
               <tbody>
                 {holders.map(h => (
                   <tr key={h._id} onClick={() => router.push(`/account-holders/${h._id}`)} style={{ cursor: 'pointer' }}>
@@ -53,8 +53,11 @@ export default function AccountHolders() {
                     <td><span className={`badge badge-${h.type}`}>{h.type}</span></td>
                     <td>{h.bankName || '—'}</td>
                     <td>{fmt(h.totalBilled)}</td>
-                    <td style={{ color: 'var(--success)' }}>{fmt(h.totalPaid)}</td>
-                    <td style={{ color: h.outstanding > 0 ? 'var(--danger)' : 'var(--success)', fontWeight: 600 }}>{fmt(h.outstanding)}</td>
+                    <td style={{ color: 'var(--success)' }}>{fmt(h.totalCollected)}</td>
+                    <td style={{ color: 'var(--danger)' }}>{fmt(h.totalPaidOut)}</td>
+                    <td style={{ color: (h.outstandingReceivable > 0 || h.outstandingPayable > 0) ? 'var(--danger)' : 'var(--success)', fontWeight: 600 }}>
+                      {h.type === 'client' ? fmt(h.outstandingReceivable) : (h.type === 'vendor' ? fmt(h.outstandingPayable) : fmt(h.outstandingReceivable + h.outstandingPayable))}
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -18,9 +18,27 @@ export async function GET() {
     const holdersWithBalance = await Promise.all(holders.map(async (h) => {
       const bills = await Bill.find({ accountHolderId: h._id });
       const payments = await Payment.find({ accountHolderId: h._id });
-      const totalBilled = bills.reduce((s, b) => s + b.totalAmount, 0);
-      const totalPaid = payments.reduce((s, p) => s + p.amount, 0);
-      return { ...h.toObject(), totalBilled, totalPaid, outstanding: totalBilled - totalPaid };
+      
+      const totalReceivable = bills.filter(b => b.type === 'receivable').reduce((s, b) => s + b.totalAmount, 0);
+      const totalPayable = bills.filter(b => b.type === 'payable').reduce((s, b) => s + b.totalAmount, 0);
+      const totalCollected = payments.filter(p => p.type === 'received').reduce((s, p) => s + p.amount, 0);
+      const totalPaidOut = payments.filter(p => p.type === 'paid').reduce((s, p) => s + p.amount, 0);
+
+      const totalBilled = totalReceivable + totalPayable;
+      const totalPaid = totalCollected + totalPaidOut; 
+      
+      return { 
+        ...h.toObject(), 
+        totalBilled, 
+        totalPaid, 
+        outstanding: totalBilled - totalPaid,
+        totalReceivable,
+        totalPayable,
+        totalCollected,
+        totalPaidOut,
+        outstandingReceivable: totalReceivable - totalCollected,
+        outstandingPayable: totalPayable - totalPaidOut
+      };
     }));
 
     return NextResponse.json(holdersWithBalance);

@@ -172,9 +172,20 @@ export default function AccountHolderDetail() {
       ) : (
         <>
           <div className="stats-grid" style={{ marginBottom: '24px' }}>
-            <div className="stat-card info"><div className="stat-label">Total Billed</div><div className="stat-value" style={{ color: 'var(--info)' }}>{fmt(data.totalBilled)}</div></div>
-            <div className="stat-card success"><div className="stat-label">Total Paid</div><div className="stat-value" style={{ color: 'var(--success)' }}>{fmt(data.totalPaid)}</div></div>
-            <div className="stat-card danger"><div className="stat-label">Outstanding</div><div className="stat-value" style={{ color: data.outstanding > 0 ? 'var(--danger)' : 'var(--success)' }}>{fmt(data.outstanding)}</div></div>
+            {h.type === 'both' ? (
+              <>
+                <div className="stat-card success"><div className="stat-label">Total Collected</div><div className="stat-value" style={{ color: 'var(--success)' }}>{fmt(data.totalCollected)}</div></div>
+                <div className="stat-card danger"><div className="stat-label">Total Paid Out</div><div className="stat-value" style={{ color: 'var(--danger)' }}>{fmt(data.totalPaidOut)}</div></div>
+                <div className="stat-card info"><div className="stat-label">Outstanding (R)</div><div className="stat-value" style={{ color: 'var(--info)' }}>{fmt(data.outstandingReceivable)}</div></div>
+                <div className="stat-card accent"><div className="stat-label">Outstanding (P)</div><div className="stat-value" style={{ color: 'var(--accent)' }}>{fmt(data.outstandingPayable)}</div></div>
+              </>
+            ) : (
+              <>
+                <div className="stat-card info"><div className="stat-label">{h.type === 'client' ? 'Total Billed (R)' : 'Total Billed (P)'}</div><div className="stat-value" style={{ color: 'var(--info)' }}>{h.type === 'client' ? fmt(data.totalReceivable) : fmt(data.totalPayable)}</div></div>
+                <div className="stat-card success"><div className="stat-label">{h.type === 'client' ? 'Total Collected' : 'Total Paid Out'}</div><div className="stat-value" style={{ color: h.type === 'client' ? 'var(--success)' : 'var(--danger)' }}>{h.type === 'client' ? fmt(data.totalCollected) : fmt(data.totalPaidOut)}</div></div>
+                <div className="stat-card danger"><div className="stat-label">Outstanding</div><div className="stat-value" style={{ color: (h.type === 'client' ? data.outstandingReceivable : data.outstandingPayable) > 0 ? 'var(--danger)' : 'var(--success)' }}>{h.type === 'client' ? fmt(data.outstandingReceivable) : fmt(data.outstandingPayable)}</div></div>
+              </>
+            )}
           </div>
 
           <div className="detail-grid" style={{ marginBottom: '32px' }}>
