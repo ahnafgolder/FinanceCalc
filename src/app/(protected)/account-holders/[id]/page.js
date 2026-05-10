@@ -13,7 +13,7 @@ export default function AccountHolderDetail() {
 
   // Bill modal
   const [showBillModal, setShowBillModal] = useState(false);
-  const [billForm, setBillForm] = useState({ description: '', totalAmount: '', dueDate: '' });
+  const [billForm, setBillForm] = useState({ type: 'receivable', description: '', totalAmount: '', dueDate: '' });
   const [billSaving, setBillSaving] = useState(false);
   const [billError, setBillError] = useState('');
 
@@ -59,12 +59,12 @@ export default function AccountHolderDetail() {
       const res = await fetch('/api/bills', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountHolderId: id, description: billForm.description, totalAmount: parseFloat(billForm.totalAmount), dueDate: billForm.dueDate || null }),
+        body: JSON.stringify({ type: billForm.type, accountHolderId: id, description: billForm.description, totalAmount: parseFloat(billForm.totalAmount), dueDate: billForm.dueDate || null }),
       });
       const d = await res.json();
       if (!res.ok) { setBillError(d.error); setBillSaving(false); return; }
       setShowBillModal(false);
-      setBillForm({ description: '', totalAmount: '', dueDate: '' });
+      setBillForm({ type: 'receivable', description: '', totalAmount: '', dueDate: '' });
       fetchData();
     } catch { setBillError('Something went wrong'); }
     setBillSaving(false);
@@ -197,10 +197,11 @@ export default function AccountHolderDetail() {
         </div>
         {data.bills?.length > 0 ? (
           <div className="card"><div className="table-container"><table>
-            <thead><tr><th>Bill #</th><th>Description</th><th>Amount</th><th>Due Date</th><th>Date</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th>Bill #</th><th>Type</th><th>Description</th><th>Amount</th><th>Due Date</th><th>Date</th><th>Status</th><th></th></tr></thead>
             <tbody>{data.bills.map(b => (
               <tr key={b._id}>
                 <td style={{ color: 'var(--accent)', cursor: 'pointer' }} onClick={() => router.push(`/bills/${b._id}`)}>{b.billNumber}</td>
+                <td><span className={`badge badge-${b.type === 'receivable' ? 'success' : 'danger'}`}>{b.type === 'receivable' ? 'Receivable' : 'Payable'}</span></td>
                 <td>{b.description || '—'}</td>
                 <td>{fmt(b.totalAmount)}</td>
                 <td>{b.dueDate ? fmtDate(b.dueDate) : '—'}</td>
@@ -221,12 +222,13 @@ export default function AccountHolderDetail() {
         </div>
         {data.payments?.length > 0 ? (
           <div className="card"><div className="table-container"><table>
-            <thead><tr><th>Date</th><th>Bill</th><th>Amount</th><th>Method</th><th>Reference</th><th>Note</th><th></th></tr></thead>
+            <thead><tr><th>Date</th><th>Type</th><th>Bill</th><th>Amount</th><th>Method</th><th>Reference</th><th>Note</th><th></th></tr></thead>
             <tbody>{data.payments.map(p => (
               <tr key={p._id}>
                 <td>{fmtDate(p.paymentDate)}</td>
+                <td><span className={`badge badge-${p.type === 'received' ? 'success' : 'danger'}`}>{p.type === 'received' ? 'Received' : 'Paid'}</span></td>
                 <td style={{ color: 'var(--accent)' }}>{p.billId?.billNumber || '—'}</td>
-                <td style={{ color: 'var(--success)', fontWeight: 600 }}>{fmt(p.amount)}</td>
+                <td style={{ color: p.type === 'received' ? 'var(--success)' : 'var(--danger)', fontWeight: 600 }}>{fmt(p.amount)}</td>
                 <td>{p.paymentMethod?.replace('_', ' ')}</td>
                 <td>{p.referenceNumber || '—'}</td>
                 <td>{p.note || '—'}</td>
@@ -244,6 +246,20 @@ export default function AccountHolderDetail() {
             <h3>Add Bill for {h.name}</h3>
             {billError && <div className="auth-error">{billError}</div>}
             <form onSubmit={handleAddBill}>
+              {h.type === 'both' ? (
+                <div className="form-group">
+                  <label>Bill Type *</label>
+                  <select className="form-control" value={billForm.type} onChange={e => setBillForm({...billForm, type: e.target.value})} required>
+                    <option value="receivable">Collecting Money (Receivable)</option>
+                    <option value="payable">Giving Money (Payable)</option>
+                  </select>
+                </div>
+              ) : (
+                <div className="form-group">
+                  <label>Bill Type</label>
+                  <input className="form-control" value={h.type === 'client' ? 'Collecting Money (Receivable)' : 'Giving Money (Payable)'} disabled />
+                </div>
+              )}
               <div className="form-group"><label>Description</label><input className="form-control" placeholder="What is this bill for?" value={billForm.description} onChange={e => setBillForm({...billForm, description: e.target.value})} /></div>
               <div className="form-row">
                 <div className="form-group"><label>Amount *</label><input className="form-control" type="number" step="0.01" min="0" placeholder="0.00" value={billForm.totalAmount} onChange={e => setBillForm({...billForm, totalAmount: e.target.value})} required /></div>
