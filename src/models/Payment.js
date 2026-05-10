@@ -24,6 +24,11 @@ const PaymentSchema = new mongoose.Schema({
     required: [true, 'Please provide payment amount'],
     min: 0,
   },
+  type: {
+    type: String,
+    enum: ['received', 'paid'],
+    default: 'received',
+  },
   paymentMethod: {
     type: String,
     enum: ['cash', 'bank_transfer', 'cheque', 'mobile_banking', 'other'],

@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import dbConnect from '@/lib/mongoose';
 import Bill from '@/models/Bill';
 import Payment from '@/models/Payment';
+import AccountHolder from '@/models/AccountHolder';
 
 export async function GET(request) {
   try {
@@ -31,11 +32,19 @@ export async function POST(request) {
 
     const body = await request.json();
 
+    // Validate type based on account holder
+    const holder = await AccountHolder.findById(body.accountHolderId);
+    if (!holder) return NextResponse.json({ error: 'Account holder not found' }, { status: 404 });
+    
+    let type = body.type || 'receivable';
+    if (holder.type === 'client') type = 'receivable';
+    if (holder.type === 'vendor') type = 'payable';
+
     // Auto-generate bill number
     const count = await Bill.countDocuments({ userId: session.user.id });
     const billNumber = `BILL-${String(count + 1).padStart(4, '0')}`;
 
-    const bill = await Bill.create({ ...body, billNumber, userId: session.user.id });
+    const bill = await Bill.create({ ...body, type, billNumber, userId: session.user.id });
     return NextResponse.json(bill, { status: 201 });
   } catch (error) {
     if (error.name === 'ValidationError') {

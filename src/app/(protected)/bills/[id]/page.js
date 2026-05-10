@@ -53,10 +53,11 @@ export default function BillDetail() {
         <div>
           <Link href="/bills" style={{ fontSize: '13px', color: 'var(--text-muted)' }}>← Back to Bills</Link>
           <h2 style={{ marginTop: '8px' }}>{b.billNumber}</h2>
+          <span className={`badge badge-${b.type === 'receivable' ? 'success' : 'danger'}`} style={{ marginRight: '8px' }}>{b.type === 'receivable' ? 'Receivable' : 'Payable'}</span>
           <span className={`badge badge-${b.status}`}>{b.status}</span>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          {b.status !== 'paid' && <button className="btn btn-primary btn-sm" onClick={() => setShowPayment(true)}>💰 Add Payment</button>}
+          {b.status !== 'paid' && <button className="btn btn-primary btn-sm" onClick={() => setShowPayment(true)}>💰 {b.type === 'receivable' ? 'Collect Money' : 'Record Payment'}</button>}
           <button className="btn btn-danger btn-sm" onClick={handleDelete}>🗑️ Delete</button>
         </div>
       </div>
@@ -106,7 +107,7 @@ export default function BillDetail() {
       {showPayment && (
         <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) setShowPayment(false); }}>
           <div className="modal">
-            <h3>Add Payment</h3>
+            <h3>{data.bill.type === 'receivable' ? 'Collect Money' : 'Record Payment'}</h3>
             <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginBottom: '20px', marginTop: '-16px' }}>Remaining: {fmt(data.remaining)}</p>
             <form onSubmit={handlePayment}>
               <div className="form-row">
@@ -122,7 +123,7 @@ export default function BillDetail() {
               <div className="form-group"><label>Note</label><textarea className="form-control" value={payForm.note} onChange={e => setPayForm({...payForm, note: e.target.value})} /></div>
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
                 <button type="button" className="btn btn-secondary" onClick={() => setShowPayment(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving...' : 'Record Payment'}</button>
+                <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving...' : (data.bill.type === 'receivable' ? 'Collect Payment' : 'Record Payment')}</button>
               </div>
             </form>
           </div>

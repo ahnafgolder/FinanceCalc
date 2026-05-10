@@ -9,9 +9,18 @@ export default function NewBill() {
   const preselectedHolder = searchParams.get('holder') || '';
 
   const [holders, setHolders] = useState([]);
-  const [form, setForm] = useState({ accountHolderId: preselectedHolder, description: '', totalAmount: '', dueDate: '' });
+  const [form, setForm] = useState({ accountHolderId: preselectedHolder, type: 'receivable', description: '', totalAmount: '', dueDate: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  const selectedHolder = holders.find(h => h._id === form.accountHolderId);
+
+  useEffect(() => {
+    if (selectedHolder) {
+      if (selectedHolder.type === 'client') setForm(f => ({ ...f, type: 'receivable' }));
+      else if (selectedHolder.type === 'vendor') setForm(f => ({ ...f, type: 'payable' }));
+    }
+  }, [selectedHolder]);
 
   useEffect(() => { fetch('/api/account-holders').then(r => r.json()).then(setHolders); }, []);
 
@@ -50,6 +59,19 @@ export default function NewBill() {
               {holders.map(h => <option key={h._id} value={h._id}>{h.name}</option>)}
             </select>
           </div>
+          {selectedHolder && (
+            <div className="form-group">
+              <label>Bill Type *</label>
+              {selectedHolder.type === 'both' ? (
+                <select className="form-control" value={form.type} onChange={e => setForm({...form, type: e.target.value})} required>
+                  <option value="receivable">Collecting Money (Receivable)</option>
+                  <option value="payable">Giving Money (Payable)</option>
+                </select>
+              ) : (
+                <input className="form-control" value={form.type === 'receivable' ? 'Collecting Money (Receivable)' : 'Giving Money (Payable)'} disabled />
+              )}
+            </div>
+          )}
           <div className="form-group">
             <label>Description</label>
             <input className="form-control" placeholder="What is this bill for?" value={form.description} onChange={e => setForm({...form, description: e.target.value})} />

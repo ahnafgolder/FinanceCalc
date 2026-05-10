@@ -30,13 +30,14 @@ export default function PaymentsPage() {
 
       {payments.length > 0 ? (
         <div className="card"><div className="table-container"><table>
-          <thead><tr><th>Date</th><th>Account Holder</th><th>Bill</th><th>Amount</th><th>Method</th><th>Reference</th><th>Note</th><th></th></tr></thead>
+          <thead><tr><th>Date</th><th>Type</th><th>Account Holder</th><th>Bill</th><th>Amount</th><th>Method</th><th>Reference</th><th>Note</th><th></th></tr></thead>
           <tbody>{payments.map(p => (
             <tr key={p._id}>
               <td>{fmtDate(p.paymentDate)}</td>
+              <td><span className={`badge badge-${p.type === 'received' ? 'success' : 'danger'}`}>{p.type === 'received' ? 'Received' : 'Paid'}</span></td>
               <td>{p.accountHolderId?.name || '—'}</td>
               <td style={{ color: 'var(--accent)' }}>{p.billId?.billNumber || '—'}</td>
-              <td style={{ color: 'var(--success)', fontWeight: 600 }}>{fmt(p.amount)}</td>
+              <td style={{ color: p.type === 'received' ? 'var(--success)' : 'var(--danger)', fontWeight: 600 }}>{fmt(p.amount)}</td>
               <td>{p.paymentMethod?.replace('_', ' ')}</td>
               <td>{p.referenceNumber || '—'}</td>
               <td>{p.note || '—'}</td>

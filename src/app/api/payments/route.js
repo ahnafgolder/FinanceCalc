@@ -28,10 +28,15 @@ export async function POST(request) {
     await dbConnect();
 
     const body = await request.json();
-    const payment = await Payment.create({ ...body, userId: session.user.id });
+
+    // Update bill status and derive type
+    const bill = await Bill.findById(body.billId);
+    if (!bill) return NextResponse.json({ error: 'Bill not found' }, { status: 404 });
+
+    const paymentType = bill.type === 'payable' ? 'paid' : 'received';
+    const payment = await Payment.create({ ...body, type: paymentType, userId: session.user.id });
 
     // Update bill status
-    const bill = await Bill.findById(body.billId);
     if (bill) {
       const allPayments = await Payment.find({ billId: bill._id });
       const totalPaid = allPayments.reduce((s, p) => s + p.amount, 0);

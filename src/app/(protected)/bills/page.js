@@ -37,10 +37,11 @@ export default function BillsPage() {
 
       {bills.length > 0 ? (
         <div className="card"><div className="table-container"><table>
-          <thead><tr><th>Bill #</th><th>Account Holder</th><th>Description</th><th>Amount</th><th>Due Date</th><th>Status</th><th>Created</th></tr></thead>
+          <thead><tr><th>Bill #</th><th>Type</th><th>Account Holder</th><th>Description</th><th>Amount</th><th>Due Date</th><th>Status</th><th>Created</th></tr></thead>
           <tbody>{bills.map(b => (
             <tr key={b._id} onClick={() => router.push(`/bills/${b._id}`)} style={{ cursor: 'pointer' }}>
               <td style={{ color: 'var(--accent)', fontWeight: 600 }}>{b.billNumber}</td>
+              <td><span className={`badge badge-${b.type === 'receivable' ? 'success' : 'danger'}`}>{b.type === 'receivable' ? 'Receivable' : 'Payable'}</span></td>
               <td>{b.accountHolderId?.name || '—'}</td>
               <td>{b.description || '—'}</td>
               <td>{fmt(b.totalAmount)}</td>
