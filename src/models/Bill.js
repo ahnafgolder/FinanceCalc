@@ -48,4 +48,9 @@ const BillSchema = new mongoose.Schema({
   },
 });
 
+BillSchema.index({ userId: 1, status: 1 });
+BillSchema.index({ userId: 1, accountHolderId: 1 });
+BillSchema.index({ userId: 1, createdAt: -1 });
+BillSchema.index({ accountHolderId: 1, type: 1 });
+
 export default mongoose.models.Bill || mongoose.model('Bill', BillSchema);

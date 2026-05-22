@@ -2,16 +2,18 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { cachedFetch, getCachedData, invalidateCache } from '@/lib/fetchCache';
 
 export default function BillsPage() {
   const router = useRouter();
-  const [bills, setBills] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [bills, setBills] = useState(() => getCachedData('/api/bills') || []);
+  const [loading, setLoading] = useState(bills.length === 0);
   const [statusFilter, setStatusFilter] = useState('');
 
   useEffect(() => {
     const params = statusFilter ? `?status=${statusFilter}` : '';
-    fetch(`/api/bills${params}`).then(r => r.json()).then(d => { setBills(d); setLoading(false); });
+    const url = `/api/bills${params}`;
+    cachedFetch(url).then(d => { setBills(d); setLoading(false); });
   }, [statusFilter]);
 
   const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'BDT', minimumFractionDigits: 0 }).format(n || 0);

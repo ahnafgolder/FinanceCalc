@@ -14,11 +14,14 @@ export async function DELETE(request, { params }) {
     const payment = await Payment.findOneAndDelete({ _id: params.id, userId: session.user.id });
     if (!payment) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-    // Recalculate bill status
+    // Recalculate bill status using aggregation
     const bill = await Bill.findById(payment.billId);
     if (bill) {
-      const remaining = await Payment.find({ billId: bill._id });
-      const totalPaid = remaining.reduce((s, p) => s + p.amount, 0);
+      const result = await Payment.aggregate([
+        { $match: { billId: bill._id } },
+        { $group: { _id: null, total: { $sum: '$amount' } } },
+      ]);
+      const totalPaid = result[0]?.total || 0;
       if (totalPaid >= bill.totalAmount) bill.status = 'paid';
       else if (totalPaid > 0) bill.status = 'partial';
       else bill.status = 'unpaid';

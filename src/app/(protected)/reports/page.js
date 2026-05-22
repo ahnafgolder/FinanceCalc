@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { cachedFetch } from '@/lib/fetchCache';
 
 export default function ReportsPage() {
   const [holders, setHolders] = useState([]);
@@ -8,7 +9,7 @@ export default function ReportsPage() {
   const [endDate, setEndDate] = useState('');
 
   useEffect(() => {
-    fetch('/api/account-holders').then(r => r.json()).then(setHolders);
+    cachedFetch('/api/account-holders').then(setHolders);
   }, []);
 
   const openReport = (type) => {

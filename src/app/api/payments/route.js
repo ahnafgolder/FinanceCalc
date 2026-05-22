@@ -14,7 +14,8 @@ export async function GET(request) {
     const payments = await Payment.find({ userId: session.user.id })
       .sort({ paymentDate: -1 })
       .populate('accountHolderId', 'name')
-      .populate('billId', 'billNumber');
+      .populate('billId', 'billNumber')
+      .lean();
     return NextResponse.json(payments);
   } catch (error) {
     return NextResponse.json({ error: 'Server error' }, { status: 500 });

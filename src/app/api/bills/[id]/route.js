@@ -11,10 +11,10 @@ export async function GET(request, { params }) {
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     await dbConnect();
 
-    const bill = await Bill.findOne({ _id: params.id, userId: session.user.id }).populate('accountHolderId');
+    const bill = await Bill.findOne({ _id: params.id, userId: session.user.id }).populate('accountHolderId').lean();
     if (!bill) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-    const payments = await Payment.find({ billId: bill._id }).sort({ paymentDate: -1 });
+    const payments = await Payment.find({ billId: bill._id }).sort({ paymentDate: -1 }).lean();
     const totalPaid = payments.reduce((s, p) => s + p.amount, 0);
 
     return NextResponse.json({ bill, payments, totalPaid, remaining: bill.totalAmount - totalPaid });

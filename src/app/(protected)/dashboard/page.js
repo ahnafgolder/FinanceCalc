@@ -1,13 +1,14 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { cachedFetch, getCachedData } from '@/lib/fetchCache';
 
 export default function Dashboard() {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState(() => getCachedData('/api/dashboard'));
+  const [loading, setLoading] = useState(!data);
 
   useEffect(() => {
-    fetch('/api/dashboard').then(r => r.json()).then(d => { setData(d); setLoading(false); }).catch(() => setLoading(false));
+    cachedFetch('/api/dashboard').then(d => { setData(d); setLoading(false); }).catch(() => setLoading(false));
   }, []);
 
   const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'BDT', minimumFractionDigits: 0 }).format(n || 0);

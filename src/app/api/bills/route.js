@@ -17,7 +17,7 @@ export async function GET(request) {
     if (searchParams.get('status')) query.status = searchParams.get('status');
     if (searchParams.get('accountHolderId')) query.accountHolderId = searchParams.get('accountHolderId');
 
-    const bills = await Bill.find(query).sort({ createdAt: -1 }).populate('accountHolderId', 'name');
+    const bills = await Bill.find(query).sort({ createdAt: -1 }).populate('accountHolderId', 'name').lean();
     return NextResponse.json(bills);
   } catch (error) {
     return NextResponse.json({ error: 'Server error' }, { status: 500 });

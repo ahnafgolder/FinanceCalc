@@ -12,11 +12,15 @@ export async function GET(request, { params }) {
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     await dbConnect();
 
-    const holder = await AccountHolder.findOne({ _id: params.id, userId: session.user.id });
+    const holder = await AccountHolder.findOne({ _id: params.id, userId: session.user.id }).lean();
     if (!holder) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-    const bills = await Bill.find({ accountHolderId: holder._id }).sort({ createdAt: -1 });
-    const payments = await Payment.find({ accountHolderId: holder._id }).sort({ paymentDate: -1 }).populate('billId', 'billNumber');
+    // Run bills and payments queries in parallel
+    const [bills, payments] = await Promise.all([
+      Bill.find({ accountHolderId: holder._id }).sort({ createdAt: -1 }).lean(),
+      Payment.find({ accountHolderId: holder._id }).sort({ paymentDate: -1 }).populate('billId', 'billNumber').lean(),
+    ]);
+
     const totalReceivable = bills.filter(b => b.type === 'receivable').reduce((s, b) => s + b.totalAmount, 0);
     const totalPayable = bills.filter(b => b.type === 'payable').reduce((s, b) => s + b.totalAmount, 0);
     const totalCollected = payments.filter(p => p.type === 'received').reduce((s, p) => s + p.amount, 0);

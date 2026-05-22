@@ -1,11 +1,12 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { cachedFetch, getCachedData, invalidateCache } from '@/lib/fetchCache';
 
 export default function PaymentsPage() {
-  const [payments, setPayments] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [payments, setPayments] = useState(() => getCachedData('/api/payments') || []);
+  const [loading, setLoading] = useState(payments.length === 0);
 
-  const fetchData = () => fetch('/api/payments').then(r => r.json()).then(d => { setPayments(d); setLoading(false); });
+  const fetchData = () => cachedFetch('/api/payments').then(d => { setPayments(d); setLoading(false); });
   useEffect(() => { fetchData(); }, []);
 
   const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'BDT', minimumFractionDigits: 0 }).format(n || 0);
@@ -14,6 +15,9 @@ export default function PaymentsPage() {
   const handleDelete = async (id) => {
     if (!confirm('Delete this payment?')) return;
     await fetch(`/api/payments/${id}`, { method: 'DELETE' });
+    invalidateCache('/api/payments');
+    invalidateCache('/api/dashboard');
+    invalidateCache('/api/bills');
     setLoading(true);
     fetchData();
   };

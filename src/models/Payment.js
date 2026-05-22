@@ -54,4 +54,8 @@ const PaymentSchema = new mongoose.Schema({
   },
 });
 
+PaymentSchema.index({ userId: 1, paymentDate: -1 });
+PaymentSchema.index({ billId: 1 });
+PaymentSchema.index({ accountHolderId: 1, type: 1 });
+
 export default mongoose.models.Payment || mongoose.model('Payment', PaymentSchema);

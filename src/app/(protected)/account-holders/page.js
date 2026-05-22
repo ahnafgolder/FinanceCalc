@@ -2,17 +2,18 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { cachedFetch, getCachedData, invalidateCache } from '@/lib/fetchCache';
 
 export default function AccountHolders() {
   const router = useRouter();
-  const [holders, setHolders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [holders, setHolders] = useState(() => getCachedData('/api/account-holders') || []);
+  const [loading, setLoading] = useState(holders.length === 0);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ name: '', type: 'vendor', bankAccountName: '', bankAccountNumber: '', bankName: '', phone: '', email: '', address: '', notes: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const fetchData = () => fetch('/api/account-holders').then(r => r.json()).then(d => { setHolders(d); setLoading(false); });
+  const fetchData = () => cachedFetch('/api/account-holders').then(d => { setHolders(d); setLoading(false); });
   useEffect(() => { fetchData(); }, []);
 
   const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'BDT', minimumFractionDigits: 0 }).format(n || 0);
@@ -27,6 +28,8 @@ export default function AccountHolders() {
       if (!res.ok) { setError(data.error); setSaving(false); return; }
       setShowModal(false);
       setForm({ name: '', type: 'vendor', bankAccountName: '', bankAccountNumber: '', bankName: '', phone: '', email: '', address: '', notes: '' });
+      invalidateCache('/api/account-holders');
+      invalidateCache('/api/dashboard');
       fetchData();
     } catch { setError('Something went wrong'); }
     setSaving(false);
