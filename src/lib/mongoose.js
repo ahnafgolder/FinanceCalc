@@ -2,7 +2,6 @@ import mongoose from 'mongoose';
 import dns from 'dns';
 
 // Force Node to cache DNS lookups — critical for MongoDB Atlas SRV connections
-// Default TTL is 0 (no caching), so every request re-resolves DNS
 dns.setDefaultResultOrder('ipv4first');
 
 const MONGODB_URI = process.env.MONGODB_URI;
@@ -18,24 +17,29 @@ if (!cached) {
 }
 
 async function dbConnect() {
+  const start = Date.now();
+
   if (cached.conn) {
+    console.log(`[DB] Connection reused in ${Date.now() - start}ms`);
     return cached.conn;
   }
 
   if (!cached.promise) {
+    // Serverless best practice: limit maxPoolSize to 1 to avoid connection exhaustion on M0 free tier (100 connection limit)
     const opts = {
       bufferCommands: false,
-      maxPoolSize: 10,                // Slightly larger pool for concurrent requests
-      minPoolSize: 2,                 // Keep 2 connections warm to avoid cold starts
-      serverSelectionTimeoutMS: 5000,
-      socketTimeoutMS: 45000,
-      connectTimeoutMS: 10000,
-      heartbeatFrequencyMS: 30000,    // Keep-alive heartbeat
-      family: 4,                      // IPv4 — avoids slow DNS on Vercel
-      autoIndex: false,               // Don't auto-build indexes in production (we define them in models)
-      compressors: ['zstd', 'snappy'], // Compress wire protocol for faster data transfer
+      maxPoolSize: 1,                 // Serverless handles 1 request per container at a time
+      minPoolSize: 0,                 // Do not keep idle connections warm (prevents connection leaks)
+      serverSelectionTimeoutMS: 3000,
+      socketTimeoutMS: 30000,
+      connectTimeoutMS: 5000,
+      family: 4,                      // IPv4 only
+      autoIndex: false,               // Do not build indexes on the fly
     };
+
+    console.log('[DB] Establishing new database connection promise...');
     cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
+      console.log(`[DB] New connection successfully established in ${Date.now() - start}ms`);
       return mongoose;
     });
   }
@@ -44,6 +48,7 @@ async function dbConnect() {
     cached.conn = await cached.promise;
   } catch (e) {
     cached.promise = null;
+    console.error(`[DB] Connection failed after ${Date.now() - start}ms:`, e.message);
     throw e;
   }
 
