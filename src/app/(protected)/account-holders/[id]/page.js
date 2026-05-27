@@ -110,17 +110,24 @@ export default function AccountHolderDetail() {
   };
 
   // ── Generate Report ──
-  const openReport = (mode) => {
-    if (mode === 'all') {
-      window.open(`/reports/account-statement?holderId=${id}`, '_blank');
+  const [reportMode, setReportMode] = useState(null); // 'all' or 'month'
+
+  const handleReportStep = (mode) => {
+    setReportMode(mode);
+  };
+
+  const openReport = (lang) => {
+    if (reportMode === 'all') {
+      window.open(`/reports/account-statement?holderId=${id}&lang=${lang}`, '_blank');
     } else {
       const [year, month] = reportMonth.split('-');
       const startDate = `${year}-${month}-01`;
       const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
       const endDate = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
-      window.open(`/reports/account-statement?holderId=${id}&startDate=${startDate}&endDate=${endDate}`, '_blank');
+      window.open(`/reports/account-statement?holderId=${id}&startDate=${startDate}&endDate=${endDate}&lang=${lang}`, '_blank');
     }
     setShowReportModal(false);
+    setReportMode(null);
   };
 
   if (loading) return <div className="loading-spinner"><div className="spinner"></div></div>;
@@ -323,21 +330,55 @@ export default function AccountHolderDetail() {
 
       {/* ── Report Modal ── */}
       {showReportModal && (
-        <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) setShowReportModal(false); }}>
-          <div className="modal">
-            <h3>Generate Report for {h.name}</h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '-16px', marginBottom: '24px' }}>Choose a specific month or generate for all time</p>
-            
-            <div className="form-group">
-              <label>Select Month</label>
-              <input type="month" className="form-control" value={reportMonth} onChange={e => setReportMonth(e.target.value)} />
-            </div>
-            
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-              <button type="button" className="btn btn-secondary" onClick={() => setShowReportModal(false)}>Cancel</button>
-              <button className="btn btn-secondary" onClick={() => openReport('all')}>📄 All Time Report</button>
-              <button className="btn btn-primary" onClick={() => openReport('month')}>📈 Monthly Report</button>
-            </div>
+        <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) { setShowReportModal(false); setReportMode(null); } }}>
+          <div className="modal" style={{ maxWidth: '440px' }}>
+            {!reportMode ? (
+              <>
+                <h3>Generate Report for {h.name}</h3>
+                <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '-16px', marginBottom: '24px' }}>Choose a specific month or generate for all time</p>
+                
+                <div className="form-group">
+                  <label>Select Month</label>
+                  <input type="month" className="form-control" value={reportMonth} onChange={e => setReportMonth(e.target.value)} />
+                </div>
+                
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                  <button type="button" className="btn btn-secondary" onClick={() => { setShowReportModal(false); setReportMode(null); }}>Cancel</button>
+                  <button className="btn btn-secondary" onClick={() => handleReportStep('all')}>📄 All Time Report</button>
+                  <button className="btn btn-primary" onClick={() => handleReportStep('month')}>📈 Monthly Report</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3>🌐 Select Report Language</h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginTop: '-16px', marginBottom: '24px' }}>
+                  Choose which language the report should be generated in:
+                </p>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button
+                    className="btn btn-primary"
+                    style={{ flex: 1, justifyContent: 'center', padding: '14px 0', fontSize: '15px' }}
+                    onClick={() => openReport('en')}
+                  >
+                    🇬🇧 English
+                  </button>
+                  <button
+                    className="btn btn-primary"
+                    style={{ flex: 1, justifyContent: 'center', padding: '14px 0', fontSize: '15px', background: 'linear-gradient(135deg, #10b981, #059669)' }}
+                    onClick={() => openReport('bn')}
+                  >
+                    🇧🇩 বাংলা
+                  </button>
+                </div>
+                <button
+                  className="btn btn-secondary"
+                  style={{ width: '100%', justifyContent: 'center', marginTop: '12px' }}
+                  onClick={() => setReportMode(null)}
+                >
+                  ← Back
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
