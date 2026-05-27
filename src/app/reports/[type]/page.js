@@ -1,16 +1,146 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 
-const fmt = (n) => `৳${(n || 0).toLocaleString()}`;
-const fmtDate = (d) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+/* ── Translations ── */
+const translations = {
+  en: {
+    currency: (n) => `৳${(n || 0).toLocaleString('en-US')}`,
+    fmtDate: (d) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    brandLine: (dateRange) => `FinanceCalc • ${dateRange} • Generated`,
+    print: '🖨️ Print / Save PDF',
+    // Outstanding
+    outstandingTitle: 'Outstanding Balances Report',
+    totalBilled: 'Total Billed',
+    totalPaid: 'Total Paid',
+    outstanding: 'Outstanding',
+    billNo: 'Bill #',
+    accountHolder: 'Account Holder',
+    status: 'Status',
+    billed: 'Billed',
+    paid: 'Paid',
+    remaining: 'Remaining',
+    total: 'TOTAL',
+    bills: 'bills',
+    // Payment Summary
+    paymentSummaryTitle: 'Payment Summary Report',
+    totalPayments: 'Total Payments',
+    grandTotal: 'Grand Total',
+    payments: 'Payments',
+    totalAmount: 'Total Amount',
+    grandTotalLabel: 'GRAND TOTAL',
+    // Full Transactions
+    fullTransactionsTitle: 'Full Transactions Report',
+    netOutstanding: 'Net Outstanding',
+    date: 'Date',
+    type: 'Type',
+    reference: 'Reference',
+    amount: 'Amount',
+    billType: 'BILL',
+    paymentType: 'PAYMENT',
+    // Account Statement
+    accountStatementTitle: 'Account Statement',
+    name: 'Name',
+    holderType: 'Type',
+    bank: 'Bank',
+    phone: 'Phone',
+    email: 'Email',
+    address: 'Address',
+    description: 'Description',
+    bill: 'Bill',
+    method: 'Method',
+    note: 'Note',
+    // Misc
+    noData: 'No data available.',
+    unknownReport: 'Unknown report type',
+  },
+  bn: {
+    currency: (n) => `৳${(n || 0).toLocaleString('bn-BD')}`,
+    fmtDate: (d) => new Date(d).toLocaleDateString('bn-BD', { month: 'long', day: 'numeric', year: 'numeric' }),
+    brandLine: (dateRange) => `ফাইন্যান্সক্যালক • ${dateRange} • তারিখ`,
+    print: '🖨️ প্রিন্ট / পিডিএফ সংরক্ষণ',
+    // Outstanding
+    outstandingTitle: 'বকেয়া ব্যালেন্স রিপোর্ট',
+    totalBilled: 'মোট বিল',
+    totalPaid: 'মোট পরিশোধিত',
+    outstanding: 'বকেয়া',
+    billNo: 'বিল নং',
+    accountHolder: 'হিসাবধারী',
+    status: 'অবস্থা',
+    billed: 'বিলকৃত',
+    paid: 'পরিশোধিত',
+    remaining: 'অবশিষ্ট',
+    total: 'মোট',
+    bills: 'বিল',
+    // Payment Summary
+    paymentSummaryTitle: 'পেমেন্ট সারাংশ রিপোর্ট',
+    totalPayments: 'মোট পেমেন্ট',
+    grandTotal: 'সর্বমোট',
+    payments: 'পেমেন্ট সংখ্যা',
+    totalAmount: 'মোট পরিমাণ',
+    grandTotalLabel: 'সর্বমোট',
+    // Full Transactions
+    fullTransactionsTitle: 'সম্পূর্ণ লেনদেন রিপোর্ট',
+    netOutstanding: 'নিট বকেয়া',
+    date: 'তারিখ',
+    type: 'ধরন',
+    reference: 'রেফারেন্স',
+    amount: 'পরিমাণ',
+    billType: 'বিল',
+    paymentType: 'পেমেন্ট',
+    // Account Statement
+    accountStatementTitle: 'হিসাব বিবরণী',
+    name: 'নাম',
+    holderType: 'ধরন',
+    bank: 'ব্যাংক',
+    phone: 'ফোন',
+    email: 'ইমেইল',
+    address: 'ঠিকানা',
+    description: 'বিবরণ',
+    bill: 'বিল',
+    method: 'পদ্ধতি',
+    note: 'নোট',
+    // Misc
+    noData: 'কোনো তথ্য পাওয়া যায়নি।',
+    unknownReport: 'অজানা রিপোর্ট ধরন',
+  },
+};
 
-function ReportShell({ title, dateRange, children }) {
+/* ── Status translation helper ── */
+const statusMap = {
+  en: { unpaid: 'UNPAID', partial: 'PARTIAL', paid: 'PAID', overdue: 'OVERDUE' },
+  bn: { unpaid: 'অপরিশোধিত', partial: 'আংশিক', paid: 'পরিশোধিত', overdue: 'মেয়াদোত্তীর্ণ' },
+};
+
+const translateStatus = (status, lang) => {
+  const key = status?.toLowerCase();
+  return statusMap[lang]?.[key] || status?.toUpperCase() || '—';
+};
+
+/* ── Payment method translation ── */
+const methodMap = {
+  en: { cash: 'Cash', bank_transfer: 'Bank Transfer', mobile_banking: 'Mobile Banking', cheque: 'Cheque', other: 'Other' },
+  bn: { cash: 'নগদ', bank_transfer: 'ব্যাংক ট্রান্সফার', mobile_banking: 'মোবাইল ব্যাংকিং', cheque: 'চেক', other: 'অন্যান্য' },
+};
+
+const translateMethod = (method, lang) => {
+  const key = method?.toLowerCase()?.replace(' ', '_');
+  return methodMap[lang]?.[key] || method?.replace('_', ' ') || '—';
+};
+
+/* ── Report Shell ── */
+function ReportShell({ title, dateRange, lang, children }) {
+  const t = translations[lang];
+  const fontFamily = lang === 'bn'
+    ? "'Noto Sans Bengali', 'Kalpurush', 'SolaimanLipi', -apple-system, sans-serif"
+    : "'Inter', -apple-system, sans-serif";
+
   return (
     <div style={{ background: '#fff', color: '#1a1a2e', minHeight: '100vh' }}>
       <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;600;700;800&display=swap');
         @media print { .no-print { display: none !important; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
-        .report-page { max-width: 900px; margin: 0 auto; padding: 40px; font-family: 'Inter', -apple-system, sans-serif; }
+        .report-page { max-width: 900px; margin: 0 auto; padding: 40px; font-family: ${fontFamily}; }
         .report-header { border-bottom: 3px solid #f59e0b; padding-bottom: 16px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: flex-end; }
         .report-title { font-size: 24px; font-weight: 800; color: #0f172a; }
         .report-sub { font-size: 12px; color: #64748b; margin-top: 4px; }
@@ -36,14 +166,14 @@ function ReportShell({ title, dateRange, children }) {
       <div className="no-print print-bar">
         <span style={{ color: '#f1f5f9', fontSize: '14px', fontWeight: 600 }}>📄 {title}</span>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button className="print-btn" onClick={() => window.print()}>🖨️ Print / Save PDF</button>
+          <button className="print-btn" onClick={() => window.print()}>{t.print}</button>
         </div>
       </div>
       <div className="report-page">
         <div className="report-header">
           <div>
             <div className="report-title">{title}</div>
-            <div className="report-sub">FinanceCalc • {dateRange} • Generated {fmtDate(new Date())}</div>
+            <div className="report-sub">{t.brandLine(dateRange)} {t.fmtDate(new Date())}</div>
           </div>
           <div style={{ fontSize: '28px', fontWeight: 800, color: '#f59e0b' }}>FC</div>
         </div>
@@ -53,65 +183,68 @@ function ReportShell({ title, dateRange, children }) {
   );
 }
 
-function OutstandingReport({ data, dateRange }) {
+function OutstandingReport({ data, dateRange, lang }) {
+  const t = translations[lang];
   const totalBilled = data.reduce((s, b) => s + b.totalAmount, 0);
   const totalPaid = data.reduce((s, b) => s + b.paid, 0);
   const totalRemaining = data.reduce((s, b) => s + b.remaining, 0);
   return (
-    <ReportShell title="Outstanding Balances Report" dateRange={dateRange}>
+    <ReportShell title={t.outstandingTitle} dateRange={dateRange} lang={lang}>
       <div className="summary-boxes">
-        <div className="summary-box"><div className="label">Total Billed</div><div className="value">{fmt(totalBilled)}</div></div>
-        <div className="summary-box"><div className="label">Total Paid</div><div className="value" style={{ color: '#10b981' }}>{fmt(totalPaid)}</div></div>
-        <div className="summary-box"><div className="label">Outstanding</div><div className="value" style={{ color: '#ef4444' }}>{fmt(totalRemaining)}</div></div>
+        <div className="summary-box"><div className="label">{t.totalBilled}</div><div className="value">{t.currency(totalBilled)}</div></div>
+        <div className="summary-box"><div className="label">{t.totalPaid}</div><div className="value" style={{ color: '#10b981' }}>{t.currency(totalPaid)}</div></div>
+        <div className="summary-box"><div className="label">{t.outstanding}</div><div className="value" style={{ color: '#ef4444' }}>{t.currency(totalRemaining)}</div></div>
       </div>
       <table className="report-table">
-        <thead><tr><th>Bill #</th><th>Account Holder</th><th>Status</th><th className="right">Billed</th><th className="right">Paid</th><th className="right">Remaining</th></tr></thead>
+        <thead><tr><th>{t.billNo}</th><th>{t.accountHolder}</th><th>{t.status}</th><th className="right">{t.billed}</th><th className="right">{t.paid}</th><th className="right">{t.remaining}</th></tr></thead>
         <tbody>
           {data.map((b, i) => (
-            <tr key={i}><td className="bold">{b.billNumber}</td><td>{b.accountHolderId?.name || '—'}</td><td>{b.status?.toUpperCase()}</td><td className="right">{fmt(b.totalAmount)}</td><td className="right">{fmt(b.paid)}</td><td className="right bold">{fmt(b.remaining)}</td></tr>
+            <tr key={i}><td className="bold">{b.billNumber}</td><td>{b.accountHolderId?.name || '—'}</td><td>{translateStatus(b.status, lang)}</td><td className="right">{t.currency(b.totalAmount)}</td><td className="right">{t.currency(b.paid)}</td><td className="right bold">{t.currency(b.remaining)}</td></tr>
           ))}
-          <tr className="total-row"><td colSpan="3">TOTAL ({data.length} bills)</td><td className="right">{fmt(totalBilled)}</td><td className="right">{fmt(totalPaid)}</td><td className="right">{fmt(totalRemaining)}</td></tr>
+          <tr className="total-row"><td colSpan="3">{t.total} ({data.length} {t.bills})</td><td className="right">{t.currency(totalBilled)}</td><td className="right">{t.currency(totalPaid)}</td><td className="right">{t.currency(totalRemaining)}</td></tr>
         </tbody>
       </table>
     </ReportShell>
   );
 }
 
-function PaymentSummaryReport({ data, dateRange }) {
+function PaymentSummaryReport({ data, dateRange, lang }) {
+  const t = translations[lang];
   const total = data.reduce((s, d) => s + d.total, 0);
   const count = data.reduce((s, d) => s + d.count, 0);
   return (
-    <ReportShell title="Payment Summary Report" dateRange={dateRange}>
+    <ReportShell title={t.paymentSummaryTitle} dateRange={dateRange} lang={lang}>
       <div className="summary-boxes">
-        <div className="summary-box"><div className="label">Total Payments</div><div className="value">{count}</div></div>
-        <div className="summary-box"><div className="label">Grand Total</div><div className="value" style={{ color: '#10b981' }}>{fmt(total)}</div></div>
+        <div className="summary-box"><div className="label">{t.totalPayments}</div><div className="value">{lang === 'bn' ? count.toLocaleString('bn-BD') : count}</div></div>
+        <div className="summary-box"><div className="label">{t.grandTotal}</div><div className="value" style={{ color: '#10b981' }}>{t.currency(total)}</div></div>
       </div>
       <table className="report-table">
-        <thead><tr><th>Account Holder</th><th className="right">Payments</th><th className="right">Total Amount</th></tr></thead>
+        <thead><tr><th>{t.accountHolder}</th><th className="right">{t.payments}</th><th className="right">{t.totalAmount}</th></tr></thead>
         <tbody>
-          {data.map((d, i) => (<tr key={i}><td>{d.name}</td><td className="right">{d.count}</td><td className="right bold">{fmt(d.total)}</td></tr>))}
-          <tr className="total-row"><td>GRAND TOTAL</td><td className="right">{count}</td><td className="right">{fmt(total)}</td></tr>
+          {data.map((d, i) => (<tr key={i}><td>{d.name}</td><td className="right">{lang === 'bn' ? d.count.toLocaleString('bn-BD') : d.count}</td><td className="right bold">{t.currency(d.total)}</td></tr>))}
+          <tr className="total-row"><td>{t.grandTotalLabel}</td><td className="right">{lang === 'bn' ? count.toLocaleString('bn-BD') : count}</td><td className="right">{t.currency(total)}</td></tr>
         </tbody>
       </table>
     </ReportShell>
   );
 }
 
-function FullTransactionsReport({ data, dateRange }) {
-  const totalBills = data.filter(t => t.type === 'BILL').reduce((s, t) => s + t.amount, 0);
-  const totalPayments = data.filter(t => t.type === 'PAYMENT').reduce((s, t) => s + t.amount, 0);
+function FullTransactionsReport({ data, dateRange, lang }) {
+  const t = translations[lang];
+  const totalBills = data.filter(tx => tx.type === 'BILL').reduce((s, tx) => s + tx.amount, 0);
+  const totalPayments = data.filter(tx => tx.type === 'PAYMENT').reduce((s, tx) => s + tx.amount, 0);
   return (
-    <ReportShell title="Full Transactions Report" dateRange={dateRange}>
+    <ReportShell title={t.fullTransactionsTitle} dateRange={dateRange} lang={lang}>
       <div className="summary-boxes">
-        <div className="summary-box"><div className="label">Total Billed</div><div className="value" style={{ color: '#ef4444' }}>{fmt(totalBills)}</div></div>
-        <div className="summary-box"><div className="label">Total Paid</div><div className="value" style={{ color: '#10b981' }}>{fmt(totalPayments)}</div></div>
-        <div className="summary-box"><div className="label">Net Outstanding</div><div className="value">{fmt(totalBills - totalPayments)}</div></div>
+        <div className="summary-box"><div className="label">{t.totalBilled}</div><div className="value" style={{ color: '#ef4444' }}>{t.currency(totalBills)}</div></div>
+        <div className="summary-box"><div className="label">{t.totalPaid}</div><div className="value" style={{ color: '#10b981' }}>{t.currency(totalPayments)}</div></div>
+        <div className="summary-box"><div className="label">{t.netOutstanding}</div><div className="value">{t.currency(totalBills - totalPayments)}</div></div>
       </div>
       <table className="report-table">
-        <thead><tr><th>Date</th><th>Type</th><th>Account Holder</th><th>Reference</th><th className="right">Amount</th></tr></thead>
+        <thead><tr><th>{t.date}</th><th>{t.type}</th><th>{t.accountHolder}</th><th>{t.reference}</th><th className="right">{t.amount}</th></tr></thead>
         <tbody>
-          {data.map((t, i) => (
-            <tr key={i}><td>{fmtDate(t.date)}</td><td className={t.type === 'BILL' ? 'badge-bill' : 'badge-pay'}>{t.type}</td><td>{t.holder || '—'}</td><td>{t.ref || '—'}</td><td className={`right bold ${t.type === 'BILL' ? 'badge-bill' : 'badge-pay'}`}>{t.type === 'BILL' ? '-' : '+'}{fmt(t.amount)}</td></tr>
+          {data.map((tx, i) => (
+            <tr key={i}><td>{t.fmtDate(tx.date)}</td><td className={tx.type === 'BILL' ? 'badge-bill' : 'badge-pay'}>{tx.type === 'BILL' ? t.billType : t.paymentType}</td><td>{tx.holder || '—'}</td><td>{tx.ref || '—'}</td><td className={`right bold ${tx.type === 'BILL' ? 'badge-bill' : 'badge-pay'}`}>{tx.type === 'BILL' ? '-' : '+'}{t.currency(tx.amount)}</td></tr>
           ))}
         </tbody>
       </table>
@@ -119,52 +252,61 @@ function FullTransactionsReport({ data, dateRange }) {
   );
 }
 
-function AccountStatementReport({ data, dateRange }) {
+function AccountStatementReport({ data, dateRange, lang }) {
+  const t = translations[lang];
   const { holder, bills, payments } = data;
   const totalBilled = bills?.reduce((s, b) => s + b.totalAmount, 0) || 0;
   const totalPaid = payments?.reduce((s, p) => s + p.amount, 0) || 0;
   return (
-    <ReportShell title="Account Statement" dateRange={dateRange}>
+    <ReportShell title={t.accountStatementTitle} dateRange={dateRange} lang={lang}>
       <div className="info-grid">
-        <div className="info-item"><div className="info-label">Name</div><div className="info-value">{holder?.name}</div></div>
-        <div className="info-item"><div className="info-label">Type</div><div className="info-value">{holder?.type?.toUpperCase()}</div></div>
-        {holder?.bankName && <div className="info-item"><div className="info-label">Bank</div><div className="info-value">{holder.bankName}</div></div>}
-        {holder?.phone && <div className="info-item"><div className="info-label">Phone</div><div className="info-value">{holder.phone}</div></div>}
-        {holder?.email && <div className="info-item"><div className="info-label">Email</div><div className="info-value">{holder.email}</div></div>}
-        {holder?.address && <div className="info-item"><div className="info-label">Address</div><div className="info-value">{holder.address}</div></div>}
+        <div className="info-item"><div className="info-label">{t.name}</div><div className="info-value">{holder?.name}</div></div>
+        <div className="info-item"><div className="info-label">{t.holderType}</div><div className="info-value">{holder?.type?.toUpperCase()}</div></div>
+        {holder?.bankName && <div className="info-item"><div className="info-label">{t.bank}</div><div className="info-value">{holder.bankName}</div></div>}
+        {holder?.phone && <div className="info-item"><div className="info-label">{t.phone}</div><div className="info-value">{holder.phone}</div></div>}
+        {holder?.email && <div className="info-item"><div className="info-label">{t.email}</div><div className="info-value">{holder.email}</div></div>}
+        {holder?.address && <div className="info-item"><div className="info-label">{t.address}</div><div className="info-value">{holder.address}</div></div>}
       </div>
       <div className="summary-boxes">
-        <div className="summary-box"><div className="label">Total Billed</div><div className="value">{fmt(totalBilled)}</div></div>
-        <div className="summary-box"><div className="label">Total Paid</div><div className="value" style={{ color: '#10b981' }}>{fmt(totalPaid)}</div></div>
-        <div className="summary-box"><div className="label">Outstanding</div><div className="value" style={{ color: totalBilled - totalPaid > 0 ? '#ef4444' : '#10b981' }}>{fmt(totalBilled - totalPaid)}</div></div>
+        <div className="summary-box"><div className="label">{t.totalBilled}</div><div className="value">{t.currency(totalBilled)}</div></div>
+        <div className="summary-box"><div className="label">{t.totalPaid}</div><div className="value" style={{ color: '#10b981' }}>{t.currency(totalPaid)}</div></div>
+        <div className="summary-box"><div className="label">{t.outstanding}</div><div className="value" style={{ color: totalBilled - totalPaid > 0 ? '#ef4444' : '#10b981' }}>{t.currency(totalBilled - totalPaid)}</div></div>
       </div>
-      <div className="section-title">Bills ({bills?.length || 0})</div>
+      <div className="section-title">{t.bills} ({lang === 'bn' ? (bills?.length || 0).toLocaleString('bn-BD') : (bills?.length || 0)})</div>
       <table className="report-table">
-        <thead><tr><th>Bill #</th><th>Description</th><th>Date</th><th>Status</th><th className="right">Amount</th></tr></thead>
+        <thead><tr><th>{t.billNo}</th><th>{t.description}</th><th>{t.date}</th><th>{t.status}</th><th className="right">{t.amount}</th></tr></thead>
         <tbody>
-          {bills?.map((b, i) => (<tr key={i}><td className="bold">{b.billNumber}</td><td>{b.description || '—'}</td><td>{fmtDate(b.createdAt)}</td><td>{b.status?.toUpperCase()}</td><td className="right bold">{fmt(b.totalAmount)}</td></tr>))}
+          {bills?.map((b, i) => (<tr key={i}><td className="bold">{b.billNumber}</td><td>{b.description || '—'}</td><td>{t.fmtDate(b.createdAt)}</td><td>{translateStatus(b.status, lang)}</td><td className="right bold">{t.currency(b.totalAmount)}</td></tr>))}
         </tbody>
       </table>
-      <div className="section-title">Payments ({payments?.length || 0})</div>
+      <div className="section-title">{t.paid} ({lang === 'bn' ? (payments?.length || 0).toLocaleString('bn-BD') : (payments?.length || 0)})</div>
       <table className="report-table">
-        <thead><tr><th>Date</th><th>Bill</th><th>Method</th><th>Note</th><th className="right">Amount</th></tr></thead>
+        <thead><tr><th>{t.date}</th><th>{t.bill}</th><th>{t.method}</th><th>{t.note}</th><th className="right">{t.amount}</th></tr></thead>
         <tbody>
-          {payments?.map((p, i) => (<tr key={i}><td>{fmtDate(p.paymentDate)}</td><td>{p.billId?.billNumber || '—'}</td><td>{p.paymentMethod?.replace('_', ' ')}</td><td>{p.note || '—'}</td><td className="right bold" style={{ color: '#10b981' }}>{fmt(p.amount)}</td></tr>))}
+          {payments?.map((p, i) => (<tr key={i}><td>{t.fmtDate(p.paymentDate)}</td><td>{p.billId?.billNumber || '—'}</td><td>{translateMethod(p.paymentMethod, lang)}</td><td>{p.note || '—'}</td><td className="right bold" style={{ color: '#10b981' }}>{t.currency(p.amount)}</td></tr>))}
         </tbody>
       </table>
     </ReportShell>
   );
 }
 
-export default function ReportViewer() {
+function ReportViewerContent() {
   const { type } = useParams();
   const searchParams = useSearchParams();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const lang = searchParams.get('lang') === 'bn' ? 'bn' : 'en';
+  const t = translations[lang];
   const startDate = searchParams.get('startDate') || '';
   const endDate = searchParams.get('endDate') || '';
-  const dateRange = startDate && endDate ? `${startDate} to ${endDate}` : startDate ? `From ${startDate}` : endDate ? `Until ${endDate}` : 'All Time';
+
+  let dateRange;
+  if (lang === 'bn') {
+    dateRange = startDate && endDate ? `${startDate} থেকে ${endDate}` : startDate ? `${startDate} থেকে` : endDate ? `${endDate} পর্যন্ত` : 'সর্বকালীন';
+  } else {
+    dateRange = startDate && endDate ? `${startDate} to ${endDate}` : startDate ? `From ${startDate}` : endDate ? `Until ${endDate}` : 'All Time';
+  }
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -180,13 +322,21 @@ export default function ReportViewer() {
   }, [type, searchParams, startDate, endDate]);
 
   if (loading) return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0e1a' }}><div className="spinner" /></div>;
-  if (!data) return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0e1a', color: '#fff' }}><p>No data available.</p></div>;
+  if (!data) return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0e1a', color: '#fff' }}><p>{t.noData}</p></div>;
 
   switch (type) {
-    case 'outstanding': return <OutstandingReport data={data} dateRange={dateRange} />;
-    case 'payments-summary': return <PaymentSummaryReport data={data} dateRange={dateRange} />;
-    case 'full-transactions': return <FullTransactionsReport data={data} dateRange={dateRange} />;
-    case 'account-statement': return <AccountStatementReport data={data} dateRange={dateRange} />;
-    default: return <div style={{ padding: '60px', textAlign: 'center', color: '#fff', background: '#0a0e1a', minHeight: '100vh' }}>Unknown report type</div>;
+    case 'outstanding': return <OutstandingReport data={data} dateRange={dateRange} lang={lang} />;
+    case 'payments-summary': return <PaymentSummaryReport data={data} dateRange={dateRange} lang={lang} />;
+    case 'full-transactions': return <FullTransactionsReport data={data} dateRange={dateRange} lang={lang} />;
+    case 'account-statement': return <AccountStatementReport data={data} dateRange={dateRange} lang={lang} />;
+    default: return <div style={{ padding: '60px', textAlign: 'center', color: '#fff', background: '#0a0e1a', minHeight: '100vh' }}>{t.unknownReport}</div>;
   }
+}
+
+export default function ReportViewer() {
+  return (
+    <Suspense fallback={<div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0e1a' }}><div className="spinner" /></div>}>
+      <ReportViewerContent />
+    </Suspense>
+  );
 }
