@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useLanguage } from '@/components/LanguageContext';
+import { invalidateCache } from '@/lib/fetchCache';
 
 export default function AccountHolderDetail() {
   const { id } = useParams();
@@ -39,6 +40,8 @@ export default function AccountHolderDetail() {
   const handleUpdate = async (e) => {
     e.preventDefault();
     await fetch(`/api/account-holders/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
+    invalidateCache('/api/account-holders');
+    invalidateCache('/api/dashboard');
     setEditing(false);
     fetchData();
   };
@@ -46,6 +49,8 @@ export default function AccountHolderDetail() {
   const handleDelete = async () => {
     if (!confirm(t('accountHolders.deleteConfirm'))) return;
     await fetch(`/api/account-holders/${id}`, { method: 'DELETE' });
+    invalidateCache('/api/account-holders');
+    invalidateCache('/api/dashboard');
     router.push('/account-holders');
   };
 
@@ -65,6 +70,9 @@ export default function AccountHolderDetail() {
       if (!res.ok) { setBillError(d.error); setBillSaving(false); return; }
       setShowBillModal(false);
       setBillForm({ type: 'receivable', description: '', totalAmount: '', dueDate: '' });
+      invalidateCache('/api/bills');
+      invalidateCache('/api/dashboard');
+      invalidateCache('/api/account-holders');
       fetchData();
     } catch { setBillError('Something went wrong'); }
     setBillSaving(false);
@@ -87,6 +95,10 @@ export default function AccountHolderDetail() {
       setShowPayModal(false);
       setPayForm({ amount: '', paymentMethod: 'cash', referenceNumber: '', note: '', paymentDate: new Date().toISOString().split('T')[0] });
       setPayBillId('');
+      invalidateCache('/api/payments');
+      invalidateCache('/api/bills');
+      invalidateCache('/api/dashboard');
+      invalidateCache('/api/account-holders');
       fetchData();
     } catch { setPayError(t('accountHolders.failedDelete')); }
     setPaySaving(false);
@@ -98,6 +110,9 @@ export default function AccountHolderDetail() {
     const res = await fetch(`/api/bills/${billId}`, { method: 'DELETE' });
     const d = await res.json();
     if (!res.ok) { alert(d.error); return; }
+    invalidateCache('/api/bills');
+    invalidateCache('/api/dashboard');
+    invalidateCache('/api/account-holders');
     fetchData();
   };
 
@@ -106,6 +121,10 @@ export default function AccountHolderDetail() {
     if (!confirm(t('accountHolderDetail.deletePaymentConfirm'))) return;
     const res = await fetch(`/api/payments/${paymentId}`, { method: 'DELETE' });
     if (!res.ok) { alert('Failed to delete payment'); return; }
+    invalidateCache('/api/payments');
+    invalidateCache('/api/bills');
+    invalidateCache('/api/dashboard');
+    invalidateCache('/api/account-holders');
     fetchData();
   };
 

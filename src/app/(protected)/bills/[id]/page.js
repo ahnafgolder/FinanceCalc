@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useLanguage } from '@/components/LanguageContext';
+import { invalidateCache } from '@/lib/fetchCache';
 
 export default function BillDetail() {
   const { id } = useParams();
@@ -29,6 +30,10 @@ export default function BillDetail() {
       setShowPayment(false);
       setPayForm({ amount: '', paymentMethod: 'cash', referenceNumber: '', note: '', paymentDate: new Date().toISOString().split('T')[0] });
       setLoading(true);
+      invalidateCache('/api/payments');
+      invalidateCache('/api/bills');
+      invalidateCache('/api/dashboard');
+      invalidateCache('/api/account-holders');
       fetchData();
     }
     setSaving(false);
@@ -37,6 +42,9 @@ export default function BillDetail() {
   const handleDelete = async () => {
     if (!confirm(t('accountHolderDetail.deleteBillConfirm'))) return;
     await fetch(`/api/bills/${id}`, { method: 'DELETE' });
+    invalidateCache('/api/bills');
+    invalidateCache('/api/dashboard');
+    invalidateCache('/api/account-holders');
     router.push('/bills');
   };
 

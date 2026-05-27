@@ -17,6 +17,7 @@ export default function PaymentsPage() {
     invalidateCache('/api/payments');
     invalidateCache('/api/dashboard');
     invalidateCache('/api/bills');
+    invalidateCache('/api/account-holders');
     setLoading(true);
     fetchData();
   };

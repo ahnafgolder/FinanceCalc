@@ -25,11 +25,11 @@ async function dbConnect() {
   }
 
   if (!cached.promise) {
-    // Serverless best practice: limit maxPoolSize to 1 to avoid connection exhaustion on M0 free tier (100 connection limit)
+    // Set maxPoolSize to 10 and minPoolSize to 1 to allow parallel server-side queries under high load and page refreshes
     const opts = {
       bufferCommands: false,
-      maxPoolSize: 1,                 // Serverless handles 1 request per container at a time
-      minPoolSize: 0,                 // Do not keep idle connections warm (prevents connection leaks)
+      maxPoolSize: 10,
+      minPoolSize: 1,
       serverSelectionTimeoutMS: 3000,
       socketTimeoutMS: 30000,
       connectTimeoutMS: 5000,
