@@ -324,6 +324,7 @@ const translations = {
       currentPassPlaceholder: "Enter your current password",
       newPassPlaceholder: "Min 6 characters",
       confirmPassword: "Confirm New Password",
+      signOutDesc: "Sign out of your account on this device.",
     },
   },
   bn: {
@@ -646,6 +647,7 @@ const translations = {
       currentPassPlaceholder: "আপনার বর্তমান পাসওয়ার্ডটি লিখুন",
       newPassPlaceholder: "কমপক্ষে ৬ অক্ষরের হতে হবে",
       confirmPassword: "নতুন পাসওয়ার্ড নিশ্চিত করুন",
+      signOutDesc: "এই ডিভাইস থেকে আপনার অ্যাকাউন্ট লগ আউট করুন।",
     },
   },
 };

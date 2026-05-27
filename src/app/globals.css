@@ -649,13 +649,21 @@ textarea.form-control { resize: vertical; min-height: 80px; }
   /* ── Forms ── */
   .form-row {
     grid-template-columns: 1fr;
+    gap: 0;
   }
   .form-control {
-    padding: 10px 14px;
+    padding: 10px 12px;
     font-size: 16px; /* prevents iOS zoom */
   }
+  .form-group {
+    margin-bottom: 12px;
+  }
   .form-group label {
-    font-size: 12px;
+    font-size: 11px;
+    margin-bottom: 4px;
+  }
+  textarea.form-control {
+    min-height: 60px;
   }
 
   /* ── Tables ── mobile compact */
@@ -694,30 +702,49 @@ textarea.form-control { resize: vertical; min-height: 80px; }
     gap: 16px !important;
   }
 
-  /* ── Modals ── full-screen-ish on mobile */
+  /* ── Modals ── mobile bottom sheet */
+  .modal-overlay {
+    align-items: flex-end;
+  }
   .modal {
     width: 100%;
     max-width: 100vw;
     min-height: auto;
     border-radius: 16px 16px 0 0;
-    padding: 24px 20px;
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    max-height: 90vh;
+    max-height: 85vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     animation: slideUpMobile 0.3s ease;
   }
-  .modal-overlay {
-    align-items: flex-end;
+  .modal::before {
+    content: '';
+    display: block;
+    width: 36px;
+    height: 4px;
+    background: var(--text-muted);
+    border-radius: 2px;
+    margin: 0 auto 12px;
+    opacity: 0.5;
   }
   @keyframes slideUpMobile {
     from { transform: translateY(100%); opacity: 0; }
     to { transform: translateY(0); opacity: 1; }
   }
   .modal h3 {
-    font-size: 18px;
-    margin-bottom: 16px;
+    font-size: 16px;
+    margin-bottom: 12px;
+  }
+  .modal .form-group {
+    margin-bottom: 10px;
+  }
+  .modal .form-control {
+    padding: 9px 12px;
+    font-size: 14px;
   }
 
   /* ── Buttons ── */

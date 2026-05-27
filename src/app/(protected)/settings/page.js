@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 import { useLanguage } from '@/components/LanguageContext';
 
 export default function SettingsPage() {
@@ -134,6 +134,24 @@ export default function SettingsPage() {
           </button>
         </form>
       </div>
+
+      {/* Sign Out */}
+      <div className="card" style={{ marginTop: '24px' }}>
+        <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span>🚪</span> {t('sidebar.signOut')}
+        </h3>
+        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
+          {t('settings.signOutDesc') || 'Sign out of your account on this device.'}
+        </p>
+        <button
+          className="btn btn-danger"
+          onClick={() => signOut({ callbackUrl: '/auth/signin' })}
+          style={{ width: '100%', justifyContent: 'center' }}
+        >
+          🚪 {t('sidebar.signOut')}
+        </button>
+      </div>
     </div>
   );
 }
+
