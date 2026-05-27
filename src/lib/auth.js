@@ -19,6 +19,10 @@ export const authOptions = {
           throw new Error('No user found with this email');
         }
 
+        if (user.status === 'frozen') {
+          throw new Error('AccountFrozen');
+        }
+
         const isValid = await bcrypt.compare(credentials.password, user.password);
         if (!isValid) {
           throw new Error('Invalid password');
@@ -28,6 +32,8 @@ export const authOptions = {
           id: user._id.toString(),
           name: user.name,
           email: user.email,
+          role: user.role || 'user',
+          status: user.status || 'active',
         };
       },
     }),
@@ -39,12 +45,16 @@ export const authOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
+        token.role = user.role;
+        token.status = user.status;
       }
       return token;
     },
     async session({ session, token }) {
       if (token) {
         session.user.id = token.id;
+        session.user.role = token.role;
+        session.user.status = token.status;
       }
       return session;
     },

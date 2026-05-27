@@ -16,6 +16,7 @@ export default function Sidebar() {
   const { data: session } = useSession();
 
   const userInitial = session?.user?.name?.charAt(0)?.toUpperCase() || '?';
+  const isAdmin = session?.user?.role === 'admin';
 
   return (
     <aside className="sidebar">
@@ -35,6 +36,24 @@ export default function Sidebar() {
             {item.label}
           </Link>
         ))}
+
+        {isAdmin && (
+          <Link
+            href="/users"
+            className={`sidebar-link ${pathname.startsWith('/users') ? 'active' : ''}`}
+          >
+            <span className="icon">🛡️</span>
+            Users
+          </Link>
+        )}
+
+        <Link
+          href="/settings"
+          className={`sidebar-link ${pathname.startsWith('/settings') ? 'active' : ''}`}
+        >
+          <span className="icon">⚙️</span>
+          Settings
+        </Link>
       </nav>
 
       <div className="sidebar-footer">

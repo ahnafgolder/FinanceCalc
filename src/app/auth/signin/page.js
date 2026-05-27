@@ -1,14 +1,16 @@
 'use client';
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
-export default function SignIn() {
+function SignInForm() {
   const router = useRouter();
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const searchParams = useSearchParams();
+  const wasReset = searchParams.get('reset') === 'true';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -22,7 +24,11 @@ export default function SignIn() {
     });
 
     if (res?.error) {
-      setError(res.error);
+      if (res.error === 'AccountFrozen') {
+        setError('Your account has been frozen. Please contact your administrator.');
+      } else {
+        setError(res.error);
+      }
       setLoading(false);
     } else {
       router.push('/dashboard');
@@ -43,6 +49,7 @@ export default function SignIn() {
         <h2>Welcome Back</h2>
         <p className="subtitle">Sign in to your FinanceCalc account</p>
 
+        {wasReset && <div className="auth-success">Password has been reset successfully. Please sign in with your new password.</div>}
         {error && <div className="auth-error">{error}</div>}
 
         <form onSubmit={handleSubmit}>
@@ -67,6 +74,9 @@ export default function SignIn() {
               onChange={(e) => setForm({ ...form, password: e.target.value })}
               required
             />
+            <p style={{ marginTop: '8px', fontSize: '13px', color: 'var(--text-muted)' }}>
+              Forgot password? <span style={{ color: 'var(--accent)' }}>Contact your admin</span>
+            </p>
           </div>
           <button type="submit" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }} disabled={loading}>
             {loading ? 'Signing in...' : 'Sign In'}
@@ -80,3 +90,18 @@ export default function SignIn() {
     </div>
   );
 }
+
+export default function SignIn() {
+  return (
+    <Suspense fallback={
+      <div className="auth-page">
+        <div className="auth-card" style={{ textAlign: 'center', padding: '40px' }}>
+          <p className="subtitle">Loading...</p>
+        </div>
+      </div>
+    }>
+      <SignInForm />
+    </Suspense>
+  );
+}
+

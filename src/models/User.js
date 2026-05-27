@@ -18,6 +18,16 @@ const UserSchema = new mongoose.Schema({
     required: [true, 'Please provide a password'],
     minlength: 6,
   },
+  role: {
+    type: String,
+    enum: ['user', 'admin'],
+    default: 'user',
+  },
+  status: {
+    type: String,
+    enum: ['active', 'frozen'],
+    default: 'active',
+  },
   createdAt: {
     type: Date,
     default: Date.now,
