@@ -9,6 +9,7 @@ const translations = {
     fmtDate: (d) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
     brandLine: (dateRange) => `FinanceCalc • ${dateRange} • Generated`,
     print: '🖨️ Print / Save PDF',
+    back: '← Go Back',
     // Outstanding
     outstandingTitle: 'Outstanding Balances Report',
     totalBilled: 'Total Billed',
@@ -59,6 +60,7 @@ const translations = {
     fmtDate: (d) => new Date(d).toLocaleDateString('bn-BD', { month: 'long', day: 'numeric', year: 'numeric' }),
     brandLine: (dateRange) => `ফাইন্যান্সক্যালক • ${dateRange} • তারিখ`,
     print: '🖨️ প্রিন্ট / পিডিএফ সংরক্ষণ',
+    back: '← ফিরে যান',
     // Outstanding
     outstandingTitle: 'বকেয়া ব্যালেন্স রিপোর্ট',
     totalBilled: 'মোট বিল',
@@ -140,6 +142,14 @@ function ReportShell({ title, dateRange, lang, children }) {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;600;700;800&display=swap');
         @media print { .no-print { display: none !important; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+        @media (max-width: 768px) {
+          .hide-mobile { display: none !important; }
+          .report-page { padding: 16px !important; }
+          .summary-boxes { gap: 8px !important; }
+          .summary-box { padding: 10px !important; }
+          .summary-box .value { font-size: 16px !important; }
+          .info-grid { grid-template-columns: 1fr !important; padding: 12px !important; }
+        }
         .report-page { max-width: 900px; margin: 0 auto; padding: 40px; font-family: ${fontFamily}; }
         .report-header { border-bottom: 3px solid #f59e0b; padding-bottom: 16px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: flex-end; }
         .report-title { font-size: 24px; font-weight: 800; color: #0f172a; }
@@ -162,9 +172,14 @@ function ReportShell({ title, dateRange, lang, children }) {
         .badge-pay { color: #10b981; font-weight: 600; }
         .print-bar { background: #111827; padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; }
         .print-btn { background: linear-gradient(135deg, #f59e0b, #d97706); color: #0a0e1a; border: none; padding: 8px 24px; border-radius: 8px; font-weight: 700; font-size: 14px; cursor: pointer; font-family: inherit; }
+        .back-btn { background: #374151; color: #f9fafb; border: 1px solid #4b5563; padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; font-family: inherit; transition: all 0.2s; }
+        .back-btn:hover { background: #4b5563; }
       `}</style>
       <div className="no-print print-bar">
-        <span style={{ color: '#f1f5f9', fontSize: '14px', fontWeight: 600 }}>📄 {title}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button className="back-btn" onClick={() => window.history.back()}>{t.back}</button>
+          <span className="hide-mobile" style={{ color: '#f1f5f9', fontSize: '14px', fontWeight: 600 }}>📄 {title}</span>
+        </div>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button className="print-btn" onClick={() => window.print()}>{t.print}</button>
         </div>
