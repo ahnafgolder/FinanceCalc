@@ -254,6 +254,10 @@ tbody tr:hover { background: var(--bg-glass); }
 }
 .form-control::placeholder { color: var(--text-muted); }
 select.form-control { cursor: pointer; }
+select.form-control option {
+  background-color: #111827;
+  color: var(--text-primary);
+}
 textarea.form-control { resize: vertical; min-height: 80px; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
@@ -462,7 +466,8 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 .lang-toggle-btn {
   position: fixed;
   top: 24px;
-  right: 40px;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 999;
   background: rgba(17, 24, 39, 0.7);
   border: 1px solid var(--border-glass);
@@ -482,7 +487,7 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 .lang-toggle-btn:hover {
   border-color: var(--accent);
   box-shadow: 0 4px 20px var(--accent-glow);
-  transform: translateY(-1px);
+  transform: translateX(-50%) translateY(-1px);
 }
 
 /* ── Responsive ── */
@@ -495,7 +500,9 @@ textarea.form-control { resize: vertical; min-height: 80px; }
   .auth-card { width: 90vw; padding: 24px; }
   .lang-toggle-btn {
     top: 16px;
-    right: 16px;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
     padding: 6px 12px;
     font-size: 12px;
   }
