@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import AuthProvider from '@/components/AuthProvider';
 import Sidebar from '@/components/Sidebar';
+import BottomNav from '@/components/BottomNav';
 import { LanguageProvider } from '@/components/LanguageContext';
 import LanguageToggle from '@/components/LanguageToggle';
 
@@ -19,6 +20,7 @@ export default async function DashboardLayout({ children }) {
             <LanguageToggle />
             {children}
           </main>
+          <BottomNav />
         </div>
       </LanguageProvider>
     </AuthProvider>

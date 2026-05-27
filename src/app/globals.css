@@ -490,20 +490,324 @@ textarea.form-control { resize: vertical; min-height: 80px; }
   transform: translateX(-50%) translateY(-1px);
 }
 
+/* ── Bottom Navigation Bar (Mobile) ── */
+.bottom-nav {
+  display: none; /* hidden on desktop */
+}
+
 /* ── Responsive ── */
 @media (max-width: 768px) {
+  /* ── Hide sidebar, show bottom nav ── */
   .sidebar { display: none; }
-  .main-content { margin-left: 0; padding: 20px; }
-  .form-row { grid-template-columns: 1fr; }
-  .stats-grid { grid-template-columns: 1fr; }
-  .detail-grid { grid-template-columns: 1fr; }
-  .auth-card { width: 90vw; padding: 24px; }
-  .lang-toggle-btn {
-    top: 16px;
-    left: 50%;
-    right: auto;
-    transform: translateX(-50%);
+
+  /* ── Bottom Navigation ── */
+  .bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background: rgba(17, 24, 39, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid var(--border-glass);
+    padding: 6px 0 calc(6px + env(safe-area-inset-bottom));
+    justify-content: space-around;
+    align-items: center;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4);
+  }
+  .bottom-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
     padding: 6px 12px;
+    border-radius: 10px;
+    text-decoration: none;
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 500;
+    transition: var(--transition);
+    -webkit-tap-highlight-color: transparent;
+    min-width: 56px;
+  }
+  .bottom-nav-item .bottom-nav-icon {
+    font-size: 20px;
+    line-height: 1;
+  }
+  .bottom-nav-item .bottom-nav-label {
+    font-size: 10px;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 64px;
+    text-align: center;
+  }
+  .bottom-nav-item.active {
+    color: var(--accent);
+  }
+  .bottom-nav-item.active .bottom-nav-icon {
+    transform: scale(1.15);
+  }
+
+  /* ── Main Content ── */
+  .main-content {
+    margin-left: 0;
+    padding: 16px 16px 90px 16px; /* bottom padding for nav bar */
+    min-height: 100vh;
+    min-height: 100dvh; /* dynamic viewport height */
+  }
+
+  /* ── Language Toggle ── */
+  .lang-toggle-btn {
+    position: fixed;
+    top: auto;
+    bottom: calc(70px + env(safe-area-inset-bottom));
+    right: 16px;
+    left: auto;
+    transform: none;
+    padding: 6px 12px;
+    font-size: 11px;
+    z-index: 999;
+    border-radius: 20px;
+  }
+  .lang-toggle-btn:hover {
+    transform: none;
+  }
+
+  /* ── Page Headers ── */
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .page-header h2 {
+    font-size: 22px;
+  }
+  .page-header p {
+    font-size: 13px;
+  }
+  .page-header .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* ── Detail Headers ── */
+  .detail-header {
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+  }
+  .detail-header h2 {
+    font-size: 20px;
+  }
+  .detail-header > div:last-child {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
+  }
+  .detail-header > div:last-child .btn {
+    flex: 1;
+    min-width: 0;
+    justify-content: center;
+    font-size: 12px;
+    padding: 8px 10px;
+  }
+
+  /* ── Stat Cards ── 2-column compact grid */
+  .stats-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .stat-card {
+    padding: 14px;
+  }
+  .stat-card .stat-label {
+    font-size: 10px;
+    letter-spacing: 0.3px;
+  }
+  .stat-card .stat-value {
+    font-size: 20px;
+    margin: 4px 0 2px;
+  }
+  .stat-card .stat-sub {
+    font-size: 10px;
+  }
+
+  /* ── Cards ── */
+  .card {
+    padding: 16px;
+    border-radius: 10px;
+  }
+
+  /* ── Forms ── */
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+  .form-control {
+    padding: 10px 14px;
+    font-size: 16px; /* prevents iOS zoom */
+  }
+  .form-group label {
     font-size: 12px;
   }
+
+  /* ── Tables ── mobile compact */
+  .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 0 -16px;
+    padding: 0 16px;
+  }
+  thead th {
+    padding: 8px 10px;
+    font-size: 10px;
+    white-space: nowrap;
+  }
+  tbody td {
+    padding: 10px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  /* ── Detail Grid ── */
+  .detail-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .detail-item .detail-label {
+    font-size: 10px;
+  }
+  .detail-item .detail-value {
+    font-size: 13px;
+  }
+
+  /* ── Dashboard content grid (bills/payments) ── */
+  .dashboard-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+
+  /* ── Modals ── full-screen-ish on mobile */
+  .modal {
+    width: 100%;
+    max-width: 100vw;
+    min-height: auto;
+    border-radius: 16px 16px 0 0;
+    padding: 24px 20px;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    max-height: 90vh;
+    animation: slideUpMobile 0.3s ease;
+  }
+  .modal-overlay {
+    align-items: flex-end;
+  }
+  @keyframes slideUpMobile {
+    from { transform: translateY(100%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  .modal h3 {
+    font-size: 18px;
+    margin-bottom: 16px;
+  }
+
+  /* ── Buttons ── */
+  .btn {
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+  .btn-sm {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+
+  /* ── Section ── */
+  .section {
+    margin-bottom: 20px;
+  }
+  .section-header {
+    margin-bottom: 12px;
+  }
+  .section-header h3 {
+    font-size: 16px;
+  }
+
+  /* ── Filters ── */
+  .filters-bar {
+    margin-bottom: 16px;
+  }
+  .filters-bar .form-control {
+    min-width: 0;
+    flex: 1;
+    font-size: 16px; /* prevents iOS zoom */
+  }
+
+  /* ── Reports Grid ── */
+  .reports-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .report-card {
+    padding: 20px;
+  }
+  .report-card:hover {
+    transform: none;
+  }
+
+  /* ── Auth ── */
+  .auth-card {
+    width: 95vw;
+    padding: 24px 20px;
+  }
+
+  /* ── Empty state ── */
+  .empty-state {
+    padding: 40px 16px;
+  }
+  .empty-state .empty-icon {
+    font-size: 36px;
+  }
+  .empty-state h3 {
+    font-size: 16px;
+  }
+
+  /* ── Badge ── */
+  .badge {
+    font-size: 11px;
+    padding: 3px 8px;
+  }
+
+  /* ── Loading ── */
+  .loading-spinner {
+    padding: 40px;
+  }
 }
+
+/* ── Extra small screens (< 380px) ── */
+@media (max-width: 380px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .stat-card .stat-value {
+    font-size: 18px;
+  }
+  .detail-header > div:last-child .btn {
+    font-size: 11px;
+    padding: 6px 8px;
+  }
+  .bottom-nav-item .bottom-nav-label {
+    font-size: 9px;
+    max-width: 52px;
+  }
+}
+
