@@ -648,22 +648,22 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 
   /* ── Forms ── */
   .form-row {
-    grid-template-columns: 1fr;
-    gap: 0;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
   }
   .form-control {
-    padding: 10px 12px;
-    font-size: 16px; /* prevents iOS zoom */
+    padding: 8px 10px;
+    font-size: 14px; /* compact but readable */
   }
   .form-group {
-    margin-bottom: 12px;
+    margin-bottom: 8px;
   }
   .form-group label {
-    font-size: 11px;
-    margin-bottom: 4px;
+    font-size: 10px;
+    margin-bottom: 3px;
   }
   textarea.form-control {
-    min-height: 60px;
+    min-height: 48px;
   }
 
   /* ── Tables ── mobile compact */
@@ -740,11 +740,11 @@ textarea.form-control { resize: vertical; min-height: 80px; }
     margin-bottom: 12px;
   }
   .modal .form-group {
-    margin-bottom: 10px;
+    margin-bottom: 6px;
   }
   .modal .form-control {
-    padding: 9px 12px;
-    font-size: 14px;
+    padding: 6px 10px;
+    font-size: 13px;
   }
 
   /* ── Buttons ── */
