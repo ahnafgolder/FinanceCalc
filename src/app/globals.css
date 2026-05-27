@@ -817,6 +817,11 @@ textarea.form-control { resize: vertical; min-height: 80px; }
   .loading-spinner {
     padding: 40px;
   }
+
+  /* ── Responsive Table Helper ── */
+  .hide-mobile {
+    display: none !important;
+  }
 }
 
 /* ── Extra small screens (< 380px) ── */

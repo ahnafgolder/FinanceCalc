@@ -42,13 +42,13 @@ export default function PaymentsPage() {
               <thead>
                 <tr>
                   <th>{t('common.date')}</th>
-                  <th>{t('common.type')}</th>
+                  <th className="hide-mobile">{t('common.type')}</th>
                   <th>{t('dashboard.account')}</th>
-                  <th>{t('bills.billNumber')}</th>
+                  <th className="hide-mobile">{t('bills.billNumber')}</th>
                   <th>{t('common.amount')}</th>
-                  <th>{t('payments.method')}</th>
-                  <th>{t('payments.reference')}</th>
-                  <th>{t('common.description')}</th>
+                  <th className="hide-mobile">{t('payments.method')}</th>
+                  <th className="hide-mobile">{t('payments.reference')}</th>
+                  <th className="hide-mobile">{t('common.description')}</th>
                   <th></th>
                 </tr>
               </thead>
@@ -56,13 +56,13 @@ export default function PaymentsPage() {
                 {payments.map(p => (
                   <tr key={p._id}>
                     <td>{fmtDate(p.paymentDate)}</td>
-                    <td><span className={`badge badge-${p.type === 'received' ? 'success' : 'danger'}`}>{p.type === 'received' ? t('accountHolderDetail.payTypeR') : t('accountHolderDetail.payTypeP')}</span></td>
+                    <td className="hide-mobile"><span className={`badge badge-${p.type === 'received' ? 'success' : 'danger'}`}>{p.type === 'received' ? t('accountHolderDetail.payTypeR') : t('accountHolderDetail.payTypeP')}</span></td>
                     <td>{p.accountHolderId?.name || '—'}</td>
-                    <td style={{ color: 'var(--accent)' }}>{p.billId?.billNumber || '—'}</td>
+                    <td className="hide-mobile" style={{ color: 'var(--accent)' }}>{p.billId?.billNumber || '—'}</td>
                     <td style={{ color: p.type === 'received' ? 'var(--success)' : 'var(--danger)', fontWeight: 600 }}>{fmt(p.amount)}</td>
-                    <td>{p.paymentMethod === 'cash' ? t('payments.cash') : (p.paymentMethod === 'bank_transfer' ? t('payments.bankTransfer') : (p.paymentMethod === 'cheque' ? t('payments.cheque') : (p.paymentMethod === 'mobile_banking' ? t('payments.mobile') : t('payments.other'))))}</td>
-                    <td>{p.referenceNumber || '—'}</td>
-                    <td>{p.note || '—'}</td>
+                    <td className="hide-mobile">{p.paymentMethod === 'cash' ? t('payments.cash') : (p.paymentMethod === 'bank_transfer' ? t('payments.bankTransfer') : (p.paymentMethod === 'cheque' ? t('payments.cheque') : (p.paymentMethod === 'mobile_banking' ? t('payments.mobile') : t('payments.other'))))}</td>
+                    <td className="hide-mobile">{p.referenceNumber || '—'}</td>
+                    <td className="hide-mobile">{p.note || '—'}</td>
                     <td><button className="btn btn-danger btn-sm btn-icon" onClick={() => handleDelete(p._id)} title={t('common.delete')}>×</button></td>
                   </tr>
                 ))}

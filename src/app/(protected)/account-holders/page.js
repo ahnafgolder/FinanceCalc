@@ -62,10 +62,10 @@ export default function AccountHolders() {
                 <tr>
                   <th>{t('accountHolders.name')}</th>
                   <th>{t('common.type')}</th>
-                  <th>{t('accountHolders.bank')}</th>
-                  <th>{t('accountHolders.totalBilled')}</th>
-                  <th>{t('accountHolders.collected')}</th>
-                  <th>{t('accountHolders.paidOut')}</th>
+                  <th className="hide-mobile">{t('accountHolders.bank')}</th>
+                  <th className="hide-mobile">{t('accountHolders.totalBilled')}</th>
+                  <th className="hide-mobile">{t('accountHolders.collected')}</th>
+                  <th className="hide-mobile">{t('accountHolders.paidOut')}</th>
                   <th>{t('accountHolders.outstanding')}</th>
                 </tr>
               </thead>
@@ -74,10 +74,10 @@ export default function AccountHolders() {
                   <tr key={h._id} onClick={() => router.push(`/account-holders/${h._id}`)} style={{ cursor: 'pointer' }}>
                     <td style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{h.name}</td>
                     <td><span className={`badge badge-${h.type}`}>{getHolderTypeLabel(h.type)}</span></td>
-                    <td>{h.bankName || '—'}</td>
-                    <td>{fmt(h.totalBilled)}</td>
-                    <td style={{ color: 'var(--success)' }}>{fmt(h.totalCollected)}</td>
-                    <td style={{ color: 'var(--danger)' }}>{fmt(h.totalPaidOut)}</td>
+                    <td className="hide-mobile">{h.bankName || '—'}</td>
+                    <td className="hide-mobile">{fmt(h.totalBilled)}</td>
+                    <td className="hide-mobile" style={{ color: 'var(--success)' }}>{fmt(h.totalCollected)}</td>
+                    <td className="hide-mobile" style={{ color: 'var(--danger)' }}>{fmt(h.totalPaidOut)}</td>
                     <td style={{ color: (h.outstandingReceivable > 0 || h.outstandingPayable > 0) ? 'var(--danger)' : 'var(--success)', fontWeight: 600 }}>
                       {h.type === 'client' ? fmt(h.outstandingReceivable) : (h.type === 'vendor' ? fmt(h.outstandingPayable) : fmt(h.outstandingReceivable + h.outstandingPayable))}
                     </td>

@@ -44,25 +44,25 @@ export default function BillsPage() {
           <thead>
             <tr>
               <th>{t('bills.billNumber')}</th>
-              <th>{t('common.type')}</th>
+              <th className="hide-mobile">{t('common.type')}</th>
               <th>{t('dashboard.account')}</th>
-              <th>{t('common.description')}</th>
+              <th className="hide-mobile">{t('common.description')}</th>
               <th>{t('common.amount')}</th>
-              <th>{t('accountHolderDetail.dueDate')}</th>
+              <th className="hide-mobile">{t('accountHolderDetail.dueDate')}</th>
               <th>{t('common.status')}</th>
-              <th>{t('bills.created')}</th>
+              <th className="hide-mobile">{t('bills.created')}</th>
             </tr>
           </thead>
           <tbody>{bills.map(b => (
             <tr key={b._id} onClick={() => router.push(`/bills/${b._id}`)} style={{ cursor: 'pointer' }}>
               <td style={{ color: 'var(--accent)', fontWeight: 600 }}>{b.billNumber}</td>
-              <td><span className={`badge badge-${b.type === 'receivable' ? 'success' : 'danger'}`}>{b.type === 'receivable' ? t('accountHolderDetail.billTypeR') : t('accountHolderDetail.billTypeP')}</span></td>
+              <td className="hide-mobile"><span className={`badge badge-${b.type === 'receivable' ? 'success' : 'danger'}`}>{b.type === 'receivable' ? t('accountHolderDetail.billTypeR') : t('accountHolderDetail.billTypeP')}</span></td>
               <td>{b.accountHolderId?.name || '—'}</td>
-              <td>{b.description || '—'}</td>
+              <td className="hide-mobile">{b.description || '—'}</td>
               <td>{fmt(b.totalAmount)}</td>
-              <td>{b.dueDate ? fmtDate(b.dueDate) : '—'}</td>
+              <td className="hide-mobile">{b.dueDate ? fmtDate(b.dueDate) : '—'}</td>
               <td><span className={`badge badge-${b.status}`}>{b.status === 'paid' ? t('accountHolderDetail.statusPaid') : (b.status === 'unpaid' ? t('accountHolderDetail.statusUnpaid') : t('accountHolderDetail.statusPartial'))}</span></td>
-              <td>{fmtDate(b.createdAt)}</td>
+              <td className="hide-mobile">{fmtDate(b.createdAt)}</td>
             </tr>
           ))}</tbody>
         </table></div></div>

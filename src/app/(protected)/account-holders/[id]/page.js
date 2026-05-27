@@ -245,10 +245,10 @@ export default function AccountHolderDetail() {
               <tr>
                 <th>{t('bills.billNumber')}</th>
                 <th>{t('common.type')}</th>
-                <th>{t('common.description')}</th>
+                <th className="hide-mobile">{t('common.description')}</th>
                 <th>{t('common.amount')}</th>
-                <th>{t('accountHolderDetail.dueDate')}</th>
-                <th>{t('bills.created')}</th>
+                <th className="hide-mobile">{t('accountHolderDetail.dueDate')}</th>
+                <th className="hide-mobile">{t('bills.created')}</th>
                 <th>{t('common.status')}</th>
                 <th></th>
               </tr>
@@ -257,10 +257,10 @@ export default function AccountHolderDetail() {
               <tr key={b._id}>
                 <td style={{ color: 'var(--accent)', cursor: 'pointer' }} onClick={() => router.push(`/bills/${b._id}`)}>{b.billNumber}</td>
                 <td><span className={`badge badge-${b.type === 'receivable' ? 'success' : 'danger'}`}>{b.type === 'receivable' ? t('accountHolderDetail.billTypeR') : t('accountHolderDetail.billTypeP')}</span></td>
-                <td>{b.description || '—'}</td>
+                <td className="hide-mobile">{b.description || '—'}</td>
                 <td>{fmt(b.totalAmount)}</td>
-                <td>{b.dueDate ? fmtDate(b.dueDate) : '—'}</td>
-                <td>{fmtDate(b.createdAt)}</td>
+                <td className="hide-mobile">{b.dueDate ? fmtDate(b.dueDate) : '—'}</td>
+                <td className="hide-mobile">{fmtDate(b.createdAt)}</td>
                 <td><span className={`badge badge-${b.status}`}>{b.status === 'paid' ? t('accountHolderDetail.statusPaid') : (b.status === 'unpaid' ? t('accountHolderDetail.statusUnpaid') : t('accountHolderDetail.statusPartial'))}</span></td>
                 <td><button className="btn btn-danger btn-sm btn-icon" onClick={() => handleDeleteBill(b._id)} title={b.status !== 'unpaid' ? 'Delete payments first' : 'Delete bill'}>×</button></td>
               </tr>
@@ -283,9 +283,9 @@ export default function AccountHolderDetail() {
                 <th>{t('common.type')}</th>
                 <th>{t('bills.billNumber')}</th>
                 <th>{t('common.amount')}</th>
-                <th>{t('payments.method')}</th>
-                <th>{t('payments.reference')}</th>
-                <th>{t('common.description')}</th>
+                <th className="hide-mobile">{t('payments.method')}</th>
+                <th className="hide-mobile">{t('payments.reference')}</th>
+                <th className="hide-mobile">{t('common.description')}</th>
                 <th></th>
               </tr>
             </thead>
@@ -295,9 +295,9 @@ export default function AccountHolderDetail() {
                 <td><span className={`badge badge-${p.type === 'received' ? 'success' : 'danger'}`}>{p.type === 'received' ? t('accountHolderDetail.payTypeR') : t('accountHolderDetail.payTypeP')}</span></td>
                 <td style={{ color: 'var(--accent)' }}>{p.billId?.billNumber || '—'}</td>
                 <td style={{ color: p.type === 'received' ? 'var(--success)' : 'var(--danger)', fontWeight: 600 }}>{fmt(p.amount)}</td>
-                <td>{p.paymentMethod === 'cash' ? t('payments.cash') : (p.paymentMethod === 'bank_transfer' ? t('payments.bankTransfer') : (p.paymentMethod === 'cheque' ? t('payments.cheque') : (p.paymentMethod === 'mobile_banking' ? t('payments.mobile') : t('payments.other'))))}</td>
-                <td>{p.referenceNumber || '—'}</td>
-                <td>{p.note || '—'}</td>
+                <td className="hide-mobile">{p.paymentMethod === 'cash' ? t('payments.cash') : (p.paymentMethod === 'bank_transfer' ? t('payments.bankTransfer') : (p.paymentMethod === 'cheque' ? t('payments.cheque') : (p.paymentMethod === 'mobile_banking' ? t('payments.mobile') : t('payments.other'))))}</td>
+                <td className="hide-mobile">{p.referenceNumber || '—'}</td>
+                <td className="hide-mobile">{p.note || '—'}</td>
                 <td><button className="btn btn-danger btn-sm btn-icon" onClick={() => handleDeletePayment(p._id)} title="Delete payment">×</button></td>
               </tr>
             ))}</tbody>
