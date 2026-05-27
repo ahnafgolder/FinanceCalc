@@ -1,0 +1,9 @@
+{
+  "appId": "com.financecalc.app",
+  "appName": "FinanceCalc",
+  "webDir": "out",
+  "server": {
+    "url": "https://gojofinance.vercel.app/",
+    "cleartext": true
+  }
+}

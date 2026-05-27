@@ -8,11 +8,16 @@
     "start": "next start"
   },
   "dependencies": {
-    "next": "14.2.3",
-    "react": "^18",
-    "react-dom": "^18",
+    "@capacitor/core": "^8.3.4",
+    "bcryptjs": "^2.4.3",
     "mongoose": "^8.3.4",
+    "next": "14.2.3",
     "next-auth": "^4.24.7",
-    "bcryptjs": "^2.4.3"
+    "react": "^18",
+    "react-dom": "^18"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.3.4",
+    "@capacitor/cli": "^8.3.4"
   }
 }

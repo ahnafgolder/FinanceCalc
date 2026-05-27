@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">FinanceCalc</string>
+    <string name="title_activity_main">FinanceCalc</string>
+    <string name="package_name">com.financecalc.app</string>
+    <string name="custom_url_scheme">com.financecalc.app</string>
+</resources>
