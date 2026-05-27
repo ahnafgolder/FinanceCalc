@@ -1,24 +1,26 @@
 'use client';
 import { useState } from 'react';
 import { useSession } from 'next-auth/react';
+import { useLanguage } from '@/components/LanguageContext';
 
 export default function SettingsPage() {
   const { data: session } = useSession();
   const [form, setForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const { t } = useLanguage();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage({ type: '', text: '' });
 
     if (form.newPassword !== form.confirmPassword) {
-      setMessage({ type: 'error', text: 'New passwords do not match' });
+      setMessage({ type: 'error', text: t('settings.passwordsDoNotMatch') });
       return;
     }
 
     if (form.newPassword.length < 6) {
-      setMessage({ type: 'error', text: 'New password must be at least 6 characters' });
+      setMessage({ type: 'error', text: t('settings.passwordTooShort') });
       return;
     }
 
@@ -34,13 +36,13 @@ export default function SettingsPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        setMessage({ type: 'success', text: data.message });
+        setMessage({ type: 'success', text: t('settings.passwordChangedSuccess') });
         setForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
       } else {
         setMessage({ type: 'error', text: data.error });
       }
     } catch {
-      setMessage({ type: 'error', text: 'Something went wrong' });
+      setMessage({ type: 'error', text: t('accountHolders.failedDelete') });
     } finally {
       setLoading(false);
     }
@@ -50,30 +52,30 @@ export default function SettingsPage() {
     <div>
       <div className="page-header">
         <div>
-          <h2>Settings</h2>
-          <p>Manage your account preferences</p>
+          <h2>{t('sidebar.settings')}</h2>
+          <p>{t('settings.subtitle')}</p>
         </div>
       </div>
 
       {/* Profile Info */}
       <div className="card settings-section">
         <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span>👤</span> Profile Information
+          <span>👤</span> {t('settings.profileInfo')}
         </h3>
         <div className="detail-grid">
           <div className="detail-item">
-            <div className="detail-label">Name</div>
+            <div className="detail-label">{t('accountHolders.name')}</div>
             <div className="detail-value">{session?.user?.name || '—'}</div>
           </div>
           <div className="detail-item">
-            <div className="detail-label">Email</div>
+            <div className="detail-label">{t('accountHolders.email')}</div>
             <div className="detail-value">{session?.user?.email || '—'}</div>
           </div>
           <div className="detail-item">
-            <div className="detail-label">Role</div>
+            <div className="detail-label">{t('settings.role')}</div>
             <div className="detail-value">
               <span className={`badge ${session?.user?.role === 'admin' ? 'badge-admin' : 'badge-user'}`}>
-                {session?.user?.role === 'admin' ? '🛡️ Admin' : '👤 User'}
+                {session?.user?.role === 'admin' ? `🛡️ ${t('settings.roleAdmin')}` : `👤 ${t('settings.roleUser')}`}
               </span>
             </div>
           </div>
@@ -83,7 +85,7 @@ export default function SettingsPage() {
       {/* Change Password */}
       <div className="card settings-section" style={{ marginTop: '24px' }}>
         <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span>🔒</span> Change Password
+          <span>🔒</span> {t('settings.changePassword')}
         </h3>
 
         {message.text && (
@@ -94,22 +96,22 @@ export default function SettingsPage() {
 
         <form onSubmit={handleSubmit} style={{ maxWidth: '480px' }}>
           <div className="form-group">
-            <label>Current Password</label>
+            <label>{t('settings.currentPassword')}</label>
             <input
               type="password"
               className="form-control"
-              placeholder="Enter your current password"
+              placeholder={t('settings.currentPassPlaceholder')}
               value={form.currentPassword}
               onChange={(e) => setForm({ ...form, currentPassword: e.target.value })}
               required
             />
           </div>
           <div className="form-group">
-            <label>New Password</label>
+            <label>{t('settings.newPassword')}</label>
             <input
               type="password"
               className="form-control"
-              placeholder="Min 6 characters"
+              placeholder={t('settings.newPassPlaceholder')}
               value={form.newPassword}
               onChange={(e) => setForm({ ...form, newPassword: e.target.value })}
               required
@@ -117,7 +119,7 @@ export default function SettingsPage() {
             />
           </div>
           <div className="form-group">
-            <label>Confirm New Password</label>
+            <label>{t('settings.confirmPassword')}</label>
             <input
               type="password"
               className="form-control"
@@ -128,7 +130,7 @@ export default function SettingsPage() {
             />
           </div>
           <button type="submit" className="btn btn-primary" disabled={loading}>
-            {loading ? 'Updating...' : 'Update Password'}
+            {loading ? t('common.saving') : t('settings.updatePasswordBtn')}
           </button>
         </form>
       </div>

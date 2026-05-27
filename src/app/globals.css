@@ -458,6 +458,33 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ── Language Toggle Button ── */
+.lang-toggle-btn {
+  position: fixed;
+  top: 24px;
+  right: 40px;
+  z-index: 999;
+  background: rgba(17, 24, 39, 0.7);
+  border: 1px solid var(--border-glass);
+  backdrop-filter: blur(20px);
+  padding: 8px 16px;
+  border-radius: 20px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: var(--transition);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+.lang-toggle-btn:hover {
+  border-color: var(--accent);
+  box-shadow: 0 4px 20px var(--accent-glow);
+  transform: translateY(-1px);
+}
+
 /* ── Responsive ── */
 @media (max-width: 768px) {
   .sidebar { display: none; }
@@ -466,4 +493,10 @@ textarea.form-control { resize: vertical; min-height: 80px; }
   .stats-grid { grid-template-columns: 1fr; }
   .detail-grid { grid-template-columns: 1fr; }
   .auth-card { width: 90vw; padding: 24px; }
+  .lang-toggle-btn {
+    top: 16px;
+    right: 16px;
+    padding: 6px 12px;
+    font-size: 12px;
+  }
 }

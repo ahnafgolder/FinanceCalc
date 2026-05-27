@@ -1,9 +1,10 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { useLanguage } from '@/components/LanguageContext';
 
-export default function NewBill() {
+function NewBillForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const preselectedHolder = searchParams.get('holder') || '';
@@ -12,6 +13,7 @@ export default function NewBill() {
   const [form, setForm] = useState({ accountHolderId: preselectedHolder, type: 'receivable', description: '', totalAmount: '', dueDate: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const { t } = useLanguage();
 
   const selectedHolder = holders.find(h => h._id === form.accountHolderId);
 
@@ -37,15 +39,15 @@ export default function NewBill() {
       const data = await res.json();
       if (!res.ok) { setError(data.error); setSaving(false); return; }
       router.push(`/bills/${data._id}`);
-    } catch { setError('Something went wrong'); setSaving(false); }
+    } catch { setError(t('accountHolders.failedDelete')); setSaving(false); }
   };
 
   return (
     <>
       <div className="page-header">
         <div>
-          <Link href="/bills" style={{ fontSize: '13px', color: 'var(--text-muted)' }}>← Back to Bills</Link>
-          <h2 style={{ marginTop: '8px' }}>Create New Bill</h2>
+          <Link href="/bills" style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{t('billDetail.backLink')}</Link>
+          <h2 style={{ marginTop: '8px' }}>{t('newBill.title')}</h2>
         </div>
       </div>
 
@@ -53,45 +55,53 @@ export default function NewBill() {
         {error && <div className="auth-error">{error}</div>}
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label>Account Holder *</label>
+            <label>{t('newBill.accountHolder')} *</label>
             <select className="form-control" value={form.accountHolderId} onChange={e => setForm({...form, accountHolderId: e.target.value})} required>
-              <option value="">Select account holder</option>
+              <option value="">{t('newBill.selectHolder')}</option>
               {holders.map(h => <option key={h._id} value={h._id}>{h.name}</option>)}
             </select>
           </div>
           {selectedHolder && (
             <div className="form-group">
-              <label>Bill Type *</label>
+              <label>{t('accountHolderDetail.billType')} *</label>
               {selectedHolder.type === 'both' ? (
                 <select className="form-control" value={form.type} onChange={e => setForm({...form, type: e.target.value})} required>
-                  <option value="receivable">Collecting Money (Receivable)</option>
-                  <option value="payable">Giving Money (Payable)</option>
+                  <option value="receivable">{t('accountHolderDetail.billTypeDescR')}</option>
+                  <option value="payable">{t('accountHolderDetail.billTypeDescP')}</option>
                 </select>
               ) : (
-                <input className="form-control" value={form.type === 'receivable' ? 'Collecting Money (Receivable)' : 'Giving Money (Payable)'} disabled />
+                <input className="form-control" value={form.type === 'receivable' ? t('accountHolderDetail.billTypeDescR') : t('accountHolderDetail.billTypeDescP')} disabled />
               )}
             </div>
           )}
           <div className="form-group">
-            <label>Description</label>
-            <input className="form-control" placeholder="What is this bill for?" value={form.description} onChange={e => setForm({...form, description: e.target.value})} />
+            <label>{t('common.description')}</label>
+            <input className="form-control" placeholder={t('accountHolderDetail.billDescPlaceholder')} value={form.description} onChange={e => setForm({...form, description: e.target.value})} />
           </div>
           <div className="form-row">
             <div className="form-group">
-              <label>Amount *</label>
+              <label>{t('common.amount')} *</label>
               <input className="form-control" type="number" step="0.01" min="0" placeholder="0.00" value={form.totalAmount} onChange={e => setForm({...form, totalAmount: e.target.value})} required />
             </div>
             <div className="form-group">
-              <label>Due Date</label>
+              <label>{t('accountHolderDetail.dueDate')}</label>
               <input className="form-control" type="date" value={form.dueDate} onChange={e => setForm({...form, dueDate: e.target.value})} />
             </div>
           </div>
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-            <Link href="/bills" className="btn btn-secondary">Cancel</Link>
-            <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Creating...' : 'Create Bill'}</button>
+            <Link href="/bills" className="btn btn-secondary">{t('common.cancel')}</Link>
+            <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? t('common.saving') : t('newBill.createBtn')}</button>
           </div>
         </form>
       </div>
     </>
+  );
+}
+
+export default function NewBill() {
+  return (
+    <Suspense fallback={<div className="loading-spinner"><div className="spinner"></div></div>}>
+      <NewBillForm />
+    </Suspense>
   );
 }

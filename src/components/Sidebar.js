@@ -2,18 +2,20 @@
 import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 import Link from 'next/link';
+import { useLanguage } from './LanguageContext';
 
 const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: '📊' },
-  { href: '/account-holders', label: 'Account Holders', icon: '👥' },
-  { href: '/bills', label: 'Bills', icon: '📄' },
-  { href: '/payments', label: 'Payments', icon: '💰' },
-  { href: '/reports', label: 'Reports', icon: '📈' },
+  { href: '/dashboard', key: 'dashboard', icon: '📊' },
+  { href: '/account-holders', key: 'accountHolders', icon: '👥' },
+  { href: '/bills', key: 'bills', icon: '📄' },
+  { href: '/payments', key: 'payments', icon: '💰' },
+  { href: '/reports', key: 'reports', icon: '📈' },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const { t } = useLanguage();
 
   const userInitial = session?.user?.name?.charAt(0)?.toUpperCase() || '?';
   const isAdmin = session?.user?.role === 'admin';
@@ -22,7 +24,7 @@ export default function Sidebar() {
     <aside className="sidebar">
       <div className="sidebar-logo">
         <div className="logo-icon">FC</div>
-        <h1>FinanceCalc</h1>
+        <h1>{t('sidebar.logo')}</h1>
       </div>
 
       <nav className="sidebar-nav">
@@ -33,7 +35,7 @@ export default function Sidebar() {
             className={`sidebar-link ${pathname.startsWith(item.href) ? 'active' : ''}`}
           >
             <span className="icon">{item.icon}</span>
-            {item.label}
+            {t(`sidebar.${item.key}`)}
           </Link>
         ))}
 
@@ -43,7 +45,7 @@ export default function Sidebar() {
             className={`sidebar-link ${pathname.startsWith('/users') ? 'active' : ''}`}
           >
             <span className="icon">🛡️</span>
-            Users
+            {t('sidebar.users')}
           </Link>
         )}
 
@@ -52,7 +54,7 @@ export default function Sidebar() {
           className={`sidebar-link ${pathname.startsWith('/settings') ? 'active' : ''}`}
         >
           <span className="icon">⚙️</span>
-          Settings
+          {t('sidebar.settings')}
         </Link>
       </nav>
 
@@ -70,7 +72,7 @@ export default function Sidebar() {
           style={{ marginTop: '8px', color: 'var(--danger)' }}
         >
           <span className="icon">🚪</span>
-          Sign Out
+          {t('sidebar.signOut')}
         </button>
       </div>
     </aside>

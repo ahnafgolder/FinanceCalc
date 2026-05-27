@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
+import { useLanguage } from '@/components/LanguageContext';
 
 export default function UsersPage() {
   const { data: session } = useSession();
@@ -11,6 +12,8 @@ export default function UsersPage() {
   const [resetForm, setResetForm] = useState({ newPassword: '', confirmPassword: '' });
   const [resetLoading, setResetLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [togglingId, setTogglingId] = useState(null);
+  const { t, fmtDate } = useLanguage();
 
   useEffect(() => {
     fetchUsers();
@@ -35,12 +38,12 @@ export default function UsersPage() {
     setMessage({ type: '', text: '' });
 
     if (resetForm.newPassword !== resetForm.confirmPassword) {
-      setMessage({ type: 'error', text: 'Passwords do not match' });
+      setMessage({ type: 'error', text: t('settings.passwordsDoNotMatch') });
       return;
     }
 
     if (resetForm.newPassword.length < 6) {
-      setMessage({ type: 'error', text: 'Password must be at least 6 characters' });
+      setMessage({ type: 'error', text: t('settings.passwordTooShort') });
       return;
     }
 
@@ -53,7 +56,7 @@ export default function UsersPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        setMessage({ type: 'success', text: data.message });
+        setMessage({ type: 'success', text: t('users.resetSuccess') });
         setTimeout(() => {
           setResetModal(null);
           setResetForm({ newPassword: '', confirmPassword: '' });
@@ -63,7 +66,7 @@ export default function UsersPage() {
         setMessage({ type: 'error', text: data.error });
       }
     } catch {
-      setMessage({ type: 'error', text: 'Something went wrong' });
+      setMessage({ type: 'error', text: t('accountHolders.failedDelete') });
     } finally {
       setResetLoading(false);
     }
@@ -75,31 +78,22 @@ export default function UsersPage() {
     setMessage({ type: '', text: '' });
   };
 
-  const [togglingId, setTogglingId] = useState(null);
-
   const handleToggleStatus = async (user) => {
-    console.log("handleToggleStatus called for user:", user.email, "user._id:", user._id, "session.user.id:", session?.user?.id);
-    if (session?.user?.id === user._id || togglingId) {
-      console.log("handleToggleStatus aborted: isSelf?", session?.user?.id === user._id, "togglingId:", togglingId);
-      return;
-    }
+    if (session?.user?.id === user._id || togglingId) return;
 
     setTogglingId(user._id);
     try {
-      console.log("Sending POST to /api/admin/users/" + user._id + "/toggle-status");
       const res = await fetch(`/api/admin/users/${user._id}/toggle-status`, {
         method: 'POST',
       });
       const data = await res.json();
-      console.log("Response from toggle-status API:", res.status, data);
       if (res.ok) {
         await fetchUsers();
       } else {
-        alert(data.error || 'Failed to change user status');
+        alert(data.error || t('users.failedToggle'));
       }
-    } catch (err) {
-      console.error("Error in handleToggleStatus:", err);
-      alert('Something went wrong');
+    } catch {
+      alert(t('accountHolders.failedDelete'));
     } finally {
       setTogglingId(null);
     }
@@ -109,8 +103,8 @@ export default function UsersPage() {
     return (
       <div className="access-denied">
         <div className="access-denied-icon">🔒</div>
-        <h2>Access Denied</h2>
-        <p>You do not have permission to view this page. Contact your administrator.</p>
+        <h2>{t('users.accessDenied')}</h2>
+        <p>{t('users.accessDeniedDesc')}</p>
       </div>
     );
   }
@@ -125,22 +119,22 @@ export default function UsersPage() {
     <div>
       <div className="page-header">
         <div>
-          <h2>User Management</h2>
-          <p>View and manage all registered users</p>
+          <h2>{t('users.title')}</h2>
+          <p>{t('users.subtitle')}</p>
         </div>
       </div>
 
       <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
         <div className="stat-card accent">
-          <div className="stat-label">Total Users</div>
+          <div className="stat-label">{t('users.totalUsers')}</div>
           <div className="stat-value">{users.length}</div>
         </div>
         <div className="stat-card info">
-          <div className="stat-label">Admins</div>
+          <div className="stat-label">{t('users.admins')}</div>
           <div className="stat-value">{users.filter((u) => u.role === 'admin').length}</div>
         </div>
         <div className="stat-card success">
-          <div className="stat-label">Regular Users</div>
+          <div className="stat-label">{t('users.regularUsers')}</div>
           <div className="stat-value">{users.filter((u) => u.role !== 'admin').length}</div>
         </div>
       </div>
@@ -150,7 +144,7 @@ export default function UsersPage() {
           <input
             type="text"
             className="form-control"
-            placeholder="🔍  Search by name or email..."
+            placeholder={`🔍  ${t('users.searchPlaceholder')}`}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             style={{ flex: 1, minWidth: '280px' }}
@@ -164,20 +158,20 @@ export default function UsersPage() {
         ) : filtered.length === 0 ? (
           <div className="empty-state">
             <div className="empty-icon">👥</div>
-            <h3>No Users Found</h3>
-            <p>No users match your search criteria.</p>
+            <h3>{t('users.noUsersFound')}</h3>
+            <p>{t('users.noUsersFoundDesc')}</p>
           </div>
         ) : (
           <div className="table-container">
             <table>
               <thead>
                 <tr>
-                  <th>User</th>
-                  <th>Email</th>
-                  <th>Role</th>
-                  <th>Status</th>
-                  <th>Joined</th>
-                  <th style={{ textAlign: 'right' }}>Actions</th>
+                  <th>{t('users.user')}</th>
+                  <th>{t('accountHolders.email')}</th>
+                  <th>{t('settings.role')}</th>
+                  <th>{t('common.status')}</th>
+                  <th>{t('users.joined')}</th>
+                  <th style={{ textAlign: 'right' }}>{t('users.actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -210,37 +204,33 @@ export default function UsersPage() {
                     <td>{user.email}</td>
                     <td>
                       <span className={`badge ${user.role === 'admin' ? 'badge-admin' : 'badge-user'}`}>
-                        {user.role === 'admin' ? '🛡️ Admin' : '👤 User'}
+                        {user.role === 'admin' ? `🛡️ ${t('settings.roleAdmin')}` : `👤 ${t('settings.roleUser')}`}
                       </span>
                     </td>
                     <td>
                       <span className={`badge ${user.status === 'frozen' ? 'badge-unpaid' : 'badge-paid'}`}>
-                        {user.status === 'frozen' ? '❄️ Frozen' : '✅ Active'}
+                        {user.status === 'frozen' ? `❄️ ${t('users.frozen')}` : `✅ ${t('users.active')}`}
                       </span>
                     </td>
                     <td style={{ color: 'var(--text-muted)' }}>
-                      {new Date(user.createdAt).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                      })}
+                      {fmtDate(user.createdAt)}
                     </td>
                     <td style={{ textAlign: 'right' }}>
                       <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                         <button
                           className="btn btn-secondary btn-sm"
                           onClick={() => setResetModal(user)}
-                          title="Reset Password"
+                          title={t('users.resetPassword')}
                         >
-                          🔑 Reset
+                          🔑 {t('users.reset')}
                         </button>
                         <button
                           className={`btn btn-sm ${user.status === 'frozen' ? 'btn-primary' : 'btn-danger'}`}
                           onClick={() => handleToggleStatus(user)}
                           disabled={session?.user?.id === user._id || togglingId === user._id}
-                          title={user.status === 'frozen' ? 'Activate Account' : 'Freeze Account'}
+                          title={user.status === 'frozen' ? t('users.activate') : t('users.freeze')}
                         >
-                          {togglingId === user._id ? '...' : user.status === 'frozen' ? '🔥 Activate' : '❄️ Freeze'}
+                          {togglingId === user._id ? '...' : user.status === 'frozen' ? `🔥 ${t('users.activate')}` : `❄️ ${t('users.freeze')}`}
                         </button>
                       </div>
                     </td>
@@ -256,9 +246,9 @@ export default function UsersPage() {
       {resetModal && (
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Reset Password</h3>
+            <h3>{t('users.resetPassword')}</h3>
             <p style={{ color: 'var(--text-secondary)', marginTop: '-16px', marginBottom: '24px', fontSize: '14px' }}>
-              Set a new password for <strong style={{ color: 'var(--text-primary)' }}>{resetModal.name}</strong>{' '}
+              {t('users.resetPasswordFor')} <strong style={{ color: 'var(--text-primary)' }}>{resetModal.name}</strong>{' '}
               <span style={{ color: 'var(--text-muted)' }}>({resetModal.email})</span>
             </p>
 
@@ -270,11 +260,11 @@ export default function UsersPage() {
 
             <form onSubmit={handleResetPassword}>
               <div className="form-group">
-                <label>New Password</label>
+                <label>{t('settings.newPassword')}</label>
                 <input
                   type="password"
                   className="form-control"
-                  placeholder="Min 6 characters"
+                  placeholder={t('settings.newPassPlaceholder')}
                   value={resetForm.newPassword}
                   onChange={(e) => setResetForm({ ...resetForm, newPassword: e.target.value })}
                   required
@@ -282,7 +272,7 @@ export default function UsersPage() {
                 />
               </div>
               <div className="form-group">
-                <label>Confirm New Password</label>
+                <label>{t('settings.confirmPassword')}</label>
                 <input
                   type="password"
                   className="form-control"
@@ -294,10 +284,10 @@ export default function UsersPage() {
               </div>
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
                 <button type="button" className="btn btn-secondary" onClick={closeModal}>
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button type="submit" className="btn btn-primary" disabled={resetLoading}>
-                  {resetLoading ? 'Resetting...' : 'Reset Password'}
+                  {resetLoading ? t('common.saving') : t('users.resetPasswordBtn')}
                 </button>
               </div>
             </form>
