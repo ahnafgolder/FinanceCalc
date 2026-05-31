@@ -6,6 +6,7 @@ import { useLanguage } from '@/components/LanguageContext';
 import { invalidateCache } from '@/lib/fetchCache';
 import { apiFetch } from '@/lib/api';
 import { useCachedQuery } from '@/hooks/useCachedQuery';
+import { buildWhatsAppStatement, getPrimaryOutstanding, openWhatsAppShare } from '@/lib/ledger';
 
 export default function AccountHolderDetail() {
   const { id } = useParams();
@@ -14,7 +15,7 @@ export default function AccountHolderDetail() {
   const { data, isLoading, refetch } = useCachedQuery(apiUrl, [id]);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({});
-  const { t, fmt, fmtDate } = useLanguage();
+  const { t, fmt, fmtDate, lang } = useLanguage();
 
   // Bill modal
   const [showBillModal, setShowBillModal] = useState(false);
@@ -162,6 +163,35 @@ export default function AccountHolderDetail() {
 
   const h = data.holder;
   const unpaidBills = data.bills?.filter(b => b.status !== 'paid') || [];
+  const primary = getPrimaryOutstanding(data);
+  const heroClass = primary.direction === 'owesMe' ? 'owes-me' : primary.direction === 'iOwe' ? 'i-owe' : 'settled';
+
+  const handleCall = () => {
+    if (h.phone) window.location.href = `tel:${h.phone.replace(/\s/g, '')}`;
+  };
+
+  const handleWhatsApp = () => {
+    const url = buildWhatsAppStatement({
+      holderName: h.name,
+      phone: h.phone,
+      outstandingReceivable: data.outstandingReceivable,
+      outstandingPayable: data.outstandingPayable,
+      holderType: h.type,
+      totalCollected: data.totalCollected,
+      totalPaidOut: data.totalPaidOut,
+      fmt,
+      fmtDate,
+      lang,
+    });
+    openWhatsAppShare(url);
+  };
+
+  const balanceLabel =
+    primary.direction === 'owesMe'
+      ? t('dashboard.theyOweYou')
+      : primary.direction === 'iOwe'
+        ? t('dashboard.youOweThem')
+        : t('dashboard.settled');
 
   const getHolderTypeLabel = (type) => {
     if (type === 'vendor') return t('accountHolders.vendor');
@@ -179,13 +209,39 @@ export default function AccountHolderDetail() {
           <span className={`badge badge-${h.type}`}>{getHolderTypeLabel(h.type)}</span>
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {h.phone && (
+            <button type="button" className="btn btn-secondary btn-sm" onClick={handleCall}>📞 {t('dashboard.call')}</button>
+          )}
+          <button type="button" className="btn btn-secondary btn-sm" onClick={handleWhatsApp} style={{ background: 'linear-gradient(135deg, #25D366, #128C7E)', color: '#fff', border: 'none' }}>
+            💬 {t('dashboard.shareWhatsApp')}
+          </button>
           <button className="btn btn-primary btn-sm" onClick={() => setShowBillModal(true)}>📄 {t('accountHolderDetail.addBill')}</button>
           <button className="btn btn-primary btn-sm" onClick={() => setShowPayModal(true)} style={{ background: 'linear-gradient(135deg, var(--success), #059669)', color: '#fff' }}>💰 {t('accountHolderDetail.addPayment')}</button>
-          <button className="btn btn-secondary btn-sm" onClick={() => setShowReportModal(true)}>📈 {t('accountHolderDetail.report')}</button>
           <button className="btn btn-secondary btn-sm" onClick={() => setEditing(!editing)}>{editing ? t('common.cancel') : `✏️ ${t('common.edit')}`}</button>
-          <button className="btn btn-danger btn-sm" onClick={handleDelete}>🗑️ {t('common.delete')}</button>
         </div>
       </div>
+
+      {!editing && (
+        <div className={`balance-hero ${heroClass}`}>
+          <div className="balance-hero-label">{balanceLabel}</div>
+          <div className="balance-hero-amount" style={{ color: primary.direction === 'settled' ? 'var(--success)' : primary.direction === 'owesMe' ? 'var(--info)' : 'var(--danger)' }}>
+            {primary.direction === 'settled' ? '✓' : fmt(primary.amount)}
+          </div>
+          {h.type === 'both' && (data.outstandingReceivable > 0 || data.outstandingPayable > 0) && (
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>
+              {t('dashboard.theyOweYou')}: {fmt(data.outstandingReceivable || 0)} · {t('dashboard.youOweThem')}: {fmt(data.outstandingPayable || 0)}
+            </p>
+          )}
+          <div className="balance-hero-actions">
+            {primary.direction !== 'settled' && unpaidBills.length > 0 && (
+              <button className="btn btn-primary" onClick={() => setShowPayModal(true)}>
+                {primary.direction === 'owesMe' ? `💰 ${t('dashboard.collect')}` : `💸 ${t('dashboard.pay')}`}
+              </button>
+            )}
+            <button className="btn btn-secondary" onClick={() => setShowBillModal(true)}>+ {t('dashboard.charge')}</button>
+          </div>
+        </div>
+      )}
 
       {editing ? (
         <div className="card" style={{ marginBottom: '24px' }}>
@@ -212,34 +268,68 @@ export default function AccountHolderDetail() {
         </div>
       ) : (
         <>
-          <div className="stats-grid" style={{ marginBottom: '24px' }}>
-            {h.type === 'both' ? (
-              <>
-                <div className="stat-card success"><div className="stat-label">{t('accountHolderDetail.totalCollected')}</div><div className="stat-value" style={{ color: 'var(--success)' }}>{fmt(data.totalCollected)}</div></div>
-                <div className="stat-card danger"><div className="stat-label">{t('accountHolderDetail.totalPaidOut')}</div><div className="stat-value" style={{ color: 'var(--danger)' }}>{fmt(data.totalPaidOut)}</div></div>
-                <div className="stat-card info"><div className="stat-label">{t('accountHolderDetail.outstanding')} (R)</div><div className="stat-value" style={{ color: 'var(--info)' }}>{fmt(data.outstandingReceivable)}</div></div>
-                <div className="stat-card accent"><div className="stat-label">{t('accountHolderDetail.outstanding')} (P)</div><div className="stat-value" style={{ color: 'var(--accent)' }}>{fmt(data.outstandingPayable)}</div></div>
-              </>
-            ) : (
-              <>
-                <div className="stat-card info"><div className="stat-label">{h.type === 'client' ? t('accountHolderDetail.totalBilledR') : t('accountHolderDetail.totalBilledP')}</div><div className="stat-value" style={{ color: 'var(--info)' }}>{h.type === 'client' ? fmt(data.totalReceivable) : fmt(data.totalPayable)}</div></div>
-                <div className="stat-card success"><div className="stat-label">{h.type === 'client' ? t('accountHolderDetail.totalCollected') : t('accountHolderDetail.totalPaidOut')}</div><div className="stat-value" style={{ color: h.type === 'client' ? 'var(--success)' : 'var(--danger)' }}>{h.type === 'client' ? fmt(data.totalCollected) : fmt(data.totalPaidOut)}</div></div>
-                <div className="stat-card danger"><div className="stat-label">{t('accountHolderDetail.outstanding')}</div><div className="stat-value" style={{ color: (h.type === 'client' ? data.outstandingReceivable : data.outstandingPayable) > 0 ? 'var(--danger)' : 'var(--success)' }}>{h.type === 'client' ? fmt(data.outstandingReceivable) : fmt(data.outstandingPayable)}</div></div>
-              </>
-            )}
-          </div>
-
           <div className="detail-grid" style={{ marginBottom: '32px' }}>
             {h.bankName && <div className="detail-item"><div className="detail-label">{t('accountHolders.bankName')}</div><div className="detail-value">{h.bankName}</div></div>}
             {h.bankAccountName && <div className="detail-item"><div className="detail-label">{t('accountHolders.accountName')}</div><div className="detail-value">{h.bankAccountName}</div></div>}
             {h.bankAccountNumber && <div className="detail-item"><div className="detail-label">{t('accountHolders.accountNumber')}</div><div className="detail-value">{h.bankAccountNumber}</div></div>}
-            {h.phone && <div className="detail-item"><div className="detail-label">{t('accountHolders.phone')}</div><div className="detail-value">{h.phone}</div></div>}
+            {h.phone && <div className="detail-item"><div className="detail-label">{t('accountHolders.phone')}</div><div className="detail-value"><a href={`tel:${h.phone}`} style={{ color: 'var(--accent)' }}>{h.phone}</a></div></div>}
             {h.email && <div className="detail-item"><div className="detail-label">{t('accountHolders.email')}</div><div className="detail-value">{h.email}</div></div>}
             {h.address && <div className="detail-item"><div className="detail-label">{t('accountHolders.address')}</div><div className="detail-value">{h.address}</div></div>}
             {h.notes && <div className="detail-item"><div className="detail-label">{t('accountHolders.notes')}</div><div className="detail-value">{h.notes}</div></div>}
           </div>
         </>
       )}
+
+      {/* ── Passbook / Ledger ── */}
+      {!editing && (
+        <div className="section">
+          <div className="section-header">
+            <h3>{t('dashboard.passbook')}</h3>
+            <button className="btn btn-secondary btn-sm" onClick={() => setShowReportModal(true)}>📈 {t('accountHolderDetail.report')}</button>
+          </div>
+          {data.ledger?.length > 0 ? (
+            <div className="card">
+              <div className="ledger-list" style={{ padding: '0 16px' }}>
+                {data.ledger.map((entry) => {
+                  const isBill = entry.kind === 'bill';
+                  const isIn = !isBill && entry.paymentType === 'received';
+                  const sign = isBill
+                    ? (entry.billType === 'receivable' ? '+' : '−')
+                    : (isIn ? '−' : '+');
+                  const amountColor = isBill
+                    ? (entry.billType === 'receivable' ? 'var(--info)' : 'var(--danger)')
+                    : (isIn ? 'var(--success)' : 'var(--danger)');
+                  return (
+                    <div key={`${entry.kind}-${entry.id}`} className="ledger-item">
+                      <div className={`ledger-icon ${isBill ? 'charge' : isIn ? 'in' : 'out'}`}>
+                        {isBill ? '📄' : '💰'}
+                      </div>
+                      <div className="ledger-body">
+                        <div className="ledger-title">
+                          {isBill
+                            ? `${entry.billNumber}${entry.description ? ` — ${entry.description}` : ''}`
+                            : `${entry.billNumber || t('payments.title')} ${entry.description ? `— ${entry.description}` : ''}`}
+                        </div>
+                        <div className="ledger-meta">{fmtDate(entry.date)}</div>
+                      </div>
+                      <div className="ledger-amounts">
+                        <div className="ledger-amount" style={{ color: amountColor }}>{sign}{fmt(entry.amount)}</div>
+                        <div className="ledger-balance">{fmt(Math.abs(entry.balance))}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="card empty-state"><p>{t('accountHolderDetail.noBillsYet')}</p></div>
+          )}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px', gap: '8px' }}>
+        <button className="btn btn-danger btn-sm" onClick={handleDelete}>🗑️ {t('common.delete')}</button>
+      </div>
 
       {/* ── Bills Section ── */}
       <div className="section">

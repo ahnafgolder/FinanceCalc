@@ -6,6 +6,7 @@ import AccountHolder from '@/models/AccountHolder';
 import Bill from '@/models/Bill';
 import Payment from '@/models/Payment';
 import { jsonResponse } from '@/lib/apiResponse';
+import { buildLedger } from '@/lib/ledger';
 
 export async function GET(request, { params }) {
   try {
@@ -30,8 +31,10 @@ export async function GET(request, { params }) {
     const totalBilled = totalReceivable + totalPayable;
     const totalPaid = totalCollected + totalPaidOut;
 
-    return jsonResponse({ 
-      holder, bills, payments, 
+    const { entries: ledger } = buildLedger(bills, payments, holder.type);
+
+    return jsonResponse({
+      holder, bills, payments, ledger,
       totalBilled, 
       totalPaid, 
       outstanding: totalBilled - totalPaid,
