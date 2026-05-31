@@ -1,17 +1,22 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useLanguage } from '@/components/LanguageContext';
 import { afterDataMutation, clearAllCache } from '@/lib/fetchCache';
 import { apiFetch } from '@/lib/api';
 import { useCachedQuery } from '@/hooks/useCachedQuery';
 import { buildWhatsAppStatement, getPrimaryOutstanding, openWhatsAppShare } from '@/lib/ledger';
+import HolderDetailOverview from '@/components/account-holders/HolderDetailOverview';
+import LedgerTimeline from '@/components/account-holders/LedgerTimeline';
+import { dueLabel } from '@/lib/dueLabel';
 
 export default function AccountHolderDetail() {
   const { id } = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const apiUrl = `/api/account-holders/${id}`;
+  const [activeTab, setActiveTab] = useState('overview');
   const { data, isLoading, refetch } = useCachedQuery(apiUrl, [id]);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({});
@@ -33,10 +38,70 @@ export default function AccountHolderDetail() {
   // Report modal
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [reportMode, setReportMode] = useState(null);
+
+  const unpaidBills = useMemo(
+    () => data?.bills?.filter((b) => b.status !== 'paid') || [],
+    [data?.bills]
+  );
+
+  const getBillRemaining = useCallback(
+    (bill) => {
+      if (!bill) return 0;
+      if (bill.remaining != null) return bill.remaining;
+      const paid = (data?.payments || [])
+        .filter((p) => String(p.billId?._id || p.billId) === String(bill._id))
+        .reduce((s, p) => s + p.amount, 0);
+      return Math.max(0, bill.totalAmount - paid);
+    },
+    [data?.payments]
+  );
+
+  const applySelectedStatementToPayForm = useCallback(
+    (bill) => {
+      if (!bill) {
+        setPayForm((prev) => ({ ...prev, amount: '', note: '' }));
+        return;
+      }
+      const remaining = getBillRemaining(bill);
+      setPayForm((prev) => ({
+        ...prev,
+        amount: remaining > 0 ? String(remaining) : String(bill.totalAmount || ''),
+        note: (bill.description || '').trim(),
+      }));
+    },
+    [getBillRemaining]
+  );
+
+  const openPayModal = useCallback(
+    (preselectedBillId) => {
+      setPayError('');
+      const billId = preselectedBillId || '';
+      setPayBillId(billId);
+      setPayForm({
+        amount: '',
+        paymentMethod: 'cash',
+        referenceNumber: '',
+        note: '',
+        paymentDate: new Date().toISOString().split('T')[0],
+      });
+      const bill = billId ? unpaidBills.find((b) => b._id === billId) : null;
+      if (bill) applySelectedStatementToPayForm(bill);
+      setShowPayModal(true);
+    },
+    [unpaidBills, applySelectedStatementToPayForm]
+  );
 
   useEffect(() => {
     if (data?.holder) setForm(data.holder);
   }, [data]);
+
+  useEffect(() => {
+    if (!data?.holder) return;
+    const action = searchParams.get('action');
+    if (action === 'statement') setShowBillModal(true);
+    else if (action === 'pay' || action === 'collect') openPayModal();
+  }, [searchParams, data?.holder, openPayModal]);
 
   const refresh = async () => {
     await afterDataMutation({ accountHolderId: id });
@@ -133,9 +198,6 @@ export default function AccountHolderDetail() {
     refetch();
   };
 
-  // ── Generate Report ──
-  const [reportMode, setReportMode] = useState(null); // 'all' or 'month'
-
   const handleReportStep = (mode) => {
     setReportMode(mode);
   };
@@ -158,45 +220,8 @@ export default function AccountHolderDetail() {
   if (!data?.holder) return <div className="empty-state"><h3>{t('common.noData')}</h3></div>;
 
   const h = data.holder;
-  const unpaidBills = data.bills?.filter(b => b.status !== 'paid') || [];
   const primary = getPrimaryOutstanding(data);
-
-  const getBillRemaining = (bill) => {
-    if (!bill) return 0;
-    const paid = (data.payments || [])
-      .filter((p) => String(p.billId?._id || p.billId) === String(bill._id))
-      .reduce((s, p) => s + p.amount, 0);
-    return Math.max(0, bill.totalAmount - paid);
-  };
-
-  const applySelectedStatementToPayForm = (bill) => {
-    if (!bill) {
-      setPayForm((prev) => ({ ...prev, amount: '', note: '' }));
-      return;
-    }
-    const remaining = getBillRemaining(bill);
-    setPayForm((prev) => ({
-      ...prev,
-      amount: remaining > 0 ? String(remaining) : String(bill.totalAmount || ''),
-      note: (bill.description || '').trim(),
-    }));
-  };
-
-  const openPayModal = (preselectedBillId) => {
-    setPayError('');
-    const billId = preselectedBillId || '';
-    setPayBillId(billId);
-    const bill = billId ? unpaidBills.find((b) => b._id === billId) : null;
-    setPayForm({
-      amount: '',
-      paymentMethod: 'cash',
-      referenceNumber: '',
-      note: '',
-      paymentDate: new Date().toISOString().split('T')[0],
-    });
-    if (bill) applySelectedStatementToPayForm(bill);
-    setShowPayModal(true);
-  };
+  const selectedPayBill = unpaidBills.find((b) => b._id === payBillId);
 
   const handlePayBillSelect = (billId) => {
     setPayBillId(billId);
@@ -204,8 +229,28 @@ export default function AccountHolderDetail() {
     applySelectedStatementToPayForm(bill);
   };
 
-  const selectedPayBill = unpaidBills.find((b) => b._id === payBillId);
-  const heroClass = primary.direction === 'owesMe' ? 'owes-me' : primary.direction === 'iOwe' ? 'i-owe' : 'settled';
+  const openCount = data.summary?.openCount ?? unpaidBills.length;
+  let balanceSummaryText = '';
+  if (primary.direction === 'owesMe') {
+    balanceSummaryText = t('accountHolderDetail.balanceSummaryOwesMe')
+      .replace('{name}', h.name)
+      .replace('{amount}', fmt(primary.amount))
+      .replace('{count}', String(openCount));
+  } else if (primary.direction === 'iOwe') {
+    balanceSummaryText = t('accountHolderDetail.balanceSummaryIOwe')
+      .replace('{name}', h.name)
+      .replace('{amount}', fmt(primary.amount))
+      .replace('{count}', String(openCount));
+  } else {
+    balanceSummaryText = t('accountHolderDetail.balanceSummarySettled').replace('{name}', h.name);
+  }
+
+  const tabs = [
+    { id: 'overview', label: t('accountHolderDetail.tabOverview') },
+    { id: 'history', label: t('accountHolderDetail.tabHistory') },
+    { id: 'statements', label: t('accountHolderDetail.tabStatements') },
+    { id: 'payments', label: t('accountHolderDetail.tabPayments') },
+  ];
 
   const handleCall = () => {
     if (h.phone) window.location.href = `tel:${h.phone.replace(/\s/g, '')}`;
@@ -227,13 +272,6 @@ export default function AccountHolderDetail() {
     openWhatsAppShare(url);
   };
 
-  const balanceLabel =
-    primary.direction === 'owesMe'
-      ? t('dashboard.theyOweYou')
-      : primary.direction === 'iOwe'
-        ? t('dashboard.youOweThem')
-        : t('dashboard.settled');
-
   const getHolderTypeLabel = (type) => {
     if (type === 'vendor') return t('accountHolders.vendor');
     if (type === 'client') return t('accountHolders.client');
@@ -242,7 +280,7 @@ export default function AccountHolderDetail() {
   };
 
   return (
-    <>
+    <div className="holder-detail-with-sticky">
       <div className="detail-header">
         <div>
           <Link href="/account-holders" style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{t('accountHolderDetail.backLink')}</Link>
@@ -256,33 +294,9 @@ export default function AccountHolderDetail() {
           <button type="button" className="btn btn-secondary btn-sm" onClick={handleWhatsApp} style={{ background: 'linear-gradient(135deg, #25D366, #128C7E)', color: '#fff', border: 'none' }}>
             💬 {t('dashboard.shareWhatsApp')}
           </button>
-          <button className="btn btn-primary btn-sm" onClick={() => setShowBillModal(true)}>📄 {t('accountHolderDetail.addBill')}</button>
-          <button className="btn btn-primary btn-sm" onClick={() => openPayModal()} style={{ background: 'linear-gradient(135deg, var(--success), #059669)', color: '#fff' }}>💰 {t('accountHolderDetail.addPayment')}</button>
-          <button className="btn btn-secondary btn-sm" onClick={() => setEditing(!editing)}>{editing ? t('common.cancel') : `✏️ ${t('common.edit')}`}</button>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setEditing(!editing)}>{editing ? t('common.cancel') : `✏️ ${t('common.edit')}`}</button>
         </div>
       </div>
-
-      {!editing && (
-        <div className={`balance-hero ${heroClass}`}>
-          <div className="balance-hero-label">{balanceLabel}</div>
-          <div className="balance-hero-amount" style={{ color: primary.direction === 'settled' ? 'var(--success)' : primary.direction === 'owesMe' ? 'var(--info)' : 'var(--danger)' }}>
-            {primary.direction === 'settled' ? '✓' : fmt(primary.amount)}
-          </div>
-          {h.type === 'both' && (data.outstandingReceivable > 0 || data.outstandingPayable > 0) && (
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>
-              {t('dashboard.theyOweYou')}: {fmt(data.outstandingReceivable || 0)} · {t('dashboard.youOweThem')}: {fmt(data.outstandingPayable || 0)}
-            </p>
-          )}
-          <div className="balance-hero-actions">
-            {primary.direction !== 'settled' && unpaidBills.length > 0 && (
-              <button className="btn btn-primary" onClick={() => openPayModal()}>
-                {primary.direction === 'owesMe' ? `💰 ${t('dashboard.collect')}` : `💸 ${t('dashboard.pay')}`}
-              </button>
-            )}
-            <button className="btn btn-secondary" onClick={() => setShowBillModal(true)}>+ {t('dashboard.charge')}</button>
-          </div>
-        </div>
-      )}
 
       {editing ? (
         <div className="card" style={{ marginBottom: '24px' }}>
@@ -309,143 +323,153 @@ export default function AccountHolderDetail() {
         </div>
       ) : (
         <>
-          <div className="detail-grid" style={{ marginBottom: '32px' }}>
-            {h.bankName && <div className="detail-item"><div className="detail-label">{t('accountHolders.bankName')}</div><div className="detail-value">{h.bankName}</div></div>}
-            {h.bankAccountName && <div className="detail-item"><div className="detail-label">{t('accountHolders.accountName')}</div><div className="detail-value">{h.bankAccountName}</div></div>}
-            {h.bankAccountNumber && <div className="detail-item"><div className="detail-label">{t('accountHolders.accountNumber')}</div><div className="detail-value">{h.bankAccountNumber}</div></div>}
-            {h.phone && <div className="detail-item"><div className="detail-label">{t('accountHolders.phone')}</div><div className="detail-value"><a href={`tel:${h.phone}`} style={{ color: 'var(--accent)' }}>{h.phone}</a></div></div>}
-            {h.email && <div className="detail-item"><div className="detail-label">{t('accountHolders.email')}</div><div className="detail-value">{h.email}</div></div>}
-            {h.address && <div className="detail-item"><div className="detail-label">{t('accountHolders.address')}</div><div className="detail-value">{h.address}</div></div>}
-            {h.notes && <div className="detail-item"><div className="detail-label">{t('accountHolders.notes')}</div><div className="detail-value">{h.notes}</div></div>}
+          <nav className="holder-tabs">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                className={`holder-tab ${activeTab === tab.id ? 'holder-tab-active' : ''}`}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+
+          {activeTab === 'overview' && (
+            <HolderDetailOverview
+              data={data}
+              balanceSummaryText={balanceSummaryText}
+              onAddStatement={() => setShowBillModal(true)}
+              onOpenPay={openPayModal}
+              onShowReport={() => setShowReportModal(true)}
+            />
+          )}
+
+          {activeTab === 'history' && (
+            <div className="section">
+              <LedgerTimeline ledger={data.ledger} />
+            </div>
+          )}
+
+          {activeTab === 'statements' && (
+            <div className="section">
+              <div className="section-header">
+                <h3>{t('accountHolderDetail.bills')} ({data.bills?.length || 0})</h3>
+                <button type="button" className="btn btn-primary btn-sm" onClick={() => setShowBillModal(true)}>+ {t('accountHolderDetail.addBill')}</button>
+              </div>
+              {data.bills?.length > 0 ? (
+                <div className="card"><div className="table-container"><table>
+                  <thead>
+                    <tr>
+                      <th>{t('bills.billNumber')}</th>
+                      <th>{t('common.type')}</th>
+                      <th className="hide-mobile">{t('common.description')}</th>
+                      <th>{t('common.amount')}</th>
+                      <th>{t('accountHolderDetail.remaining')}</th>
+                      <th className="hide-mobile">{t('accountHolderDetail.dueDate')}</th>
+                      <th>{t('common.status')}</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>{data.bills.map((b) => {
+                    const remaining = b.remaining ?? getBillRemaining(b);
+                    const pct = b.totalAmount > 0 ? Math.min(((b.totalPaid || 0) / b.totalAmount) * 100, 100) : 0;
+                    return (
+                      <tr key={b._id}>
+                        <td style={{ color: 'var(--accent)', cursor: 'pointer' }} onClick={() => router.push(`/bills/${b._id}`)}>{b.billNumber}</td>
+                        <td>
+                          {b.category === 'loan' && <span className="badge badge-loan" style={{ marginRight: '6px' }}>{t('loan.badge')}</span>}
+                          <span className={`badge badge-${b.type === 'receivable' ? 'success' : 'danger'}`}>{b.type === 'receivable' ? t('accountHolderDetail.billTypeR') : t('accountHolderDetail.billTypeP')}</span>
+                        </td>
+                        <td className="hide-mobile">{b.description || '—'}</td>
+                        <td>{fmt(b.totalAmount)}</td>
+                        <td>
+                          {fmt(remaining)}
+                          <div className="progress-bar" style={{ marginTop: '6px', maxWidth: '100px' }}>
+                            <div className="progress-bar-fill" style={{ width: `${pct}%` }} />
+                          </div>
+                        </td>
+                        <td className="hide-mobile">{b.dueDate ? dueLabel(b.dueDate, t, fmtDate) : '—'}</td>
+                        <td><span className={`badge badge-${b.status}`}>{b.status === 'paid' ? t('accountHolderDetail.statusPaid') : (b.status === 'unpaid' ? t('accountHolderDetail.statusUnpaid') : t('accountHolderDetail.statusPartial'))}</span></td>
+                        <td><button type="button" className="btn btn-danger btn-sm btn-icon" onClick={() => handleDeleteBill(b._id)}>×</button></td>
+                      </tr>
+                    );
+                  })}</tbody>
+                </table></div></div>
+              ) : (
+                <div className="card empty-state"><p>{t('accountHolderDetail.noBillsYet')}</p></div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'payments' && (
+            <div className="section">
+              <div className="section-header">
+                <h3>{t('accountHolderDetail.payments')} ({data.payments?.length || 0})</h3>
+                {unpaidBills.length > 0 && (
+                  <button type="button" className="btn btn-sm" onClick={() => openPayModal()} style={{ background: 'linear-gradient(135deg, var(--success), #059669)', color: '#fff', border: 'none' }}>
+                    + {t('accountHolderDetail.addPayment')}
+                  </button>
+                )}
+              </div>
+              {data.payments?.length > 0 ? (
+                <div className="card"><div className="table-container"><table>
+                  <thead>
+                    <tr>
+                      <th>{t('common.date')}</th>
+                      <th>{t('common.type')}</th>
+                      <th>{t('bills.billNumber')}</th>
+                      <th>{t('common.amount')}</th>
+                      <th className="hide-mobile">{t('payments.method')}</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>{data.payments.map((p) => (
+                    <tr key={p._id}>
+                      <td>{fmtDate(p.paymentDate)}</td>
+                      <td><span className={`badge badge-${p.type === 'received' ? 'success' : 'danger'}`}>{p.type === 'received' ? t('accountHolderDetail.payTypeR') : t('accountHolderDetail.payTypeP')}</span></td>
+                      <td>{p.billId?.billNumber || '—'}</td>
+                      <td style={{ fontWeight: 600 }}>{fmt(p.amount)}</td>
+                      <td className="hide-mobile">{p.paymentMethod === 'cash' ? t('payments.cash') : t('payments.other')}</td>
+                      <td><button type="button" className="btn btn-danger btn-sm btn-icon" onClick={() => handleDeletePayment(p._id)}>×</button></td>
+                    </tr>
+                  ))}</tbody>
+                </table></div></div>
+              ) : (
+                <div className="card empty-state"><p>{t('accountHolderDetail.noPaymentsYet')}</p></div>
+              )}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px' }}>
+            <button type="button" className="btn btn-danger btn-sm" onClick={handleDelete}>🗑️ {t('common.delete')}</button>
           </div>
         </>
       )}
 
-      {/* ── Passbook / Ledger ── */}
       {!editing && (
-        <div className="section">
-          <div className="section-header">
-            <h3>{t('dashboard.passbook')}</h3>
-            <button className="btn btn-secondary btn-sm" onClick={() => setShowReportModal(true)}>📈 {t('accountHolderDetail.report')}</button>
-          </div>
-          {data.ledger?.length > 0 ? (
-            <div className="card">
-              <div className="ledger-list" style={{ padding: '0 16px' }}>
-                {data.ledger.map((entry) => {
-                  const isBill = entry.kind === 'bill';
-                  const isIn = !isBill && entry.paymentType === 'received';
-                  const sign = isBill
-                    ? (entry.billType === 'receivable' ? '+' : '−')
-                    : (isIn ? '−' : '+');
-                  const amountColor = isBill
-                    ? (entry.billType === 'receivable' ? 'var(--info)' : 'var(--danger)')
-                    : (isIn ? 'var(--success)' : 'var(--danger)');
-                  return (
-                    <div key={`${entry.kind}-${entry.id}`} className="ledger-item">
-                      <div className={`ledger-icon ${isBill ? (entry.category === 'loan' ? 'charge' : 'charge') : isIn ? 'in' : 'out'}`}>
-                        {isBill ? (entry.category === 'loan' ? '🤝' : '📄') : '💰'}
-                      </div>
-                      <div className="ledger-body">
-                        <div className="ledger-title">
-                          {isBill
-                            ? `${entry.billNumber}${entry.category === 'loan' ? ` (${t('loan.badge')})` : ''}${entry.description ? ` — ${entry.description}` : ''}`
-                            : `${entry.billNumber || t('payments.title')} ${entry.description ? `— ${entry.description}` : ''}`}
-                        </div>
-                        <div className="ledger-meta">{fmtDate(entry.date)}</div>
-                      </div>
-                      <div className="ledger-amounts">
-                        <div className="ledger-amount" style={{ color: amountColor }}>{sign}{fmt(entry.amount)}</div>
-                        <div className="ledger-balance">{fmt(Math.abs(entry.balance))}</div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ) : (
-            <div className="card empty-state"><p>{t('accountHolderDetail.noBillsYet')}</p></div>
+        <div className="sticky-holder-actions">
+          {primary.direction !== 'settled' && unpaidBills.length > 0 && (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => openPayModal()}
+              style={{ background: 'linear-gradient(135deg, var(--success), #059669)' }}
+            >
+              {primary.direction === 'owesMe' ? t('dashboard.collect') : t('dashboard.pay')}
+            </button>
+          )}
+          <button type="button" className="btn btn-secondary" onClick={() => setShowBillModal(true)}>
+            + {t('dashboard.charge')}
+          </button>
+          {unpaidBills.length > 0 && (
+            <button type="button" className="btn btn-primary" onClick={() => openPayModal()}>
+              {t('accountHolderDetail.addPayment')}
+            </button>
           )}
         </div>
       )}
-
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px', gap: '8px' }}>
-        <button className="btn btn-danger btn-sm" onClick={handleDelete}>🗑️ {t('common.delete')}</button>
-      </div>
-
-      {/* ── Bills Section ── */}
-      <div className="section">
-        <div className="section-header">
-          <h3>{t('accountHolderDetail.bills')} ({data.bills?.length || 0})</h3>
-          <button className="btn btn-primary btn-sm" onClick={() => setShowBillModal(true)}>+ {t('accountHolderDetail.addBill')}</button>
-        </div>
-        {data.bills?.length > 0 ? (
-          <div className="card"><div className="table-container"><table>
-            <thead>
-              <tr>
-                <th>{t('bills.billNumber')}</th>
-                <th>{t('common.type')}</th>
-                <th className="hide-mobile">{t('common.description')}</th>
-                <th>{t('common.amount')}</th>
-                <th className="hide-mobile">{t('accountHolderDetail.dueDate')}</th>
-                <th className="hide-mobile">{t('bills.created')}</th>
-                <th>{t('common.status')}</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>{data.bills.map(b => (
-              <tr key={b._id}>
-                <td style={{ color: 'var(--accent)', cursor: 'pointer' }} onClick={() => router.push(`/bills/${b._id}`)}>{b.billNumber}</td>
-                <td>
-                  {b.category === 'loan' && <span className="badge badge-loan" style={{ marginRight: '6px' }}>{t('loan.badge')}</span>}
-                  <span className={`badge badge-${b.type === 'receivable' ? 'success' : 'danger'}`}>{b.type === 'receivable' ? t('accountHolderDetail.billTypeR') : t('accountHolderDetail.billTypeP')}</span>
-                </td>
-                <td className="hide-mobile">{b.description || '—'}</td>
-                <td>{fmt(b.totalAmount)}</td>
-                <td className="hide-mobile">{b.dueDate ? fmtDate(b.dueDate) : '—'}</td>
-                <td className="hide-mobile">{fmtDate(b.createdAt)}</td>
-                <td><span className={`badge badge-${b.status}`}>{b.status === 'paid' ? t('accountHolderDetail.statusPaid') : (b.status === 'unpaid' ? t('accountHolderDetail.statusUnpaid') : t('accountHolderDetail.statusPartial'))}</span></td>
-                <td><button className="btn btn-danger btn-sm btn-icon" onClick={() => handleDeleteBill(b._id)} title={b.status !== 'unpaid' ? 'Delete payments first' : 'Delete bill'}>×</button></td>
-              </tr>
-            ))}</tbody>
-          </table></div></div>
-        ) : <div className="card empty-state"><p>{t('accountHolderDetail.noBillsYet')}</p></div>}
-      </div>
-
-      {/* ── Payments Section ── */}
-      <div className="section">
-        <div className="section-header">
-          <h3>{t('accountHolderDetail.payments')} ({data.payments?.length || 0})</h3>
-          {unpaidBills.length > 0 && <button className="btn btn-sm" onClick={() => openPayModal()} style={{ background: 'linear-gradient(135deg, var(--success), #059669)', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 14px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>+ {t('accountHolderDetail.addPayment')}</button>}
-        </div>
-        {data.payments?.length > 0 ? (
-          <div className="card"><div className="table-container"><table>
-            <thead>
-              <tr>
-                <th>{t('common.date')}</th>
-                <th>{t('common.type')}</th>
-                <th>{t('bills.billNumber')}</th>
-                <th>{t('common.amount')}</th>
-                <th className="hide-mobile">{t('payments.method')}</th>
-                <th className="hide-mobile">{t('payments.reference')}</th>
-                <th className="hide-mobile">{t('common.description')}</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>{data.payments.map(p => (
-              <tr key={p._id}>
-                <td>{fmtDate(p.paymentDate)}</td>
-                <td><span className={`badge badge-${p.type === 'received' ? 'success' : 'danger'}`}>{p.type === 'received' ? t('accountHolderDetail.payTypeR') : t('accountHolderDetail.payTypeP')}</span></td>
-                <td style={{ color: 'var(--accent)' }}>{p.billId?.billNumber || '—'}</td>
-                <td style={{ color: p.type === 'received' ? 'var(--success)' : 'var(--danger)', fontWeight: 600 }}>{fmt(p.amount)}</td>
-                <td className="hide-mobile">{p.paymentMethod === 'cash' ? t('payments.cash') : (p.paymentMethod === 'bank_transfer' ? t('payments.bankTransfer') : (p.paymentMethod === 'cheque' ? t('payments.cheque') : (p.paymentMethod === 'mobile_banking' ? t('payments.mobile') : t('payments.other'))))}</td>
-                <td className="hide-mobile">{p.referenceNumber || '—'}</td>
-                <td className="hide-mobile">{p.note || '—'}</td>
-                <td><button className="btn btn-danger btn-sm btn-icon" onClick={() => handleDeletePayment(p._id)} title="Delete payment">×</button></td>
-              </tr>
-            ))}</tbody>
-          </table></div></div>
-        ) : <div className="card empty-state"><p>{t('accountHolderDetail.noPaymentsYet')}</p></div>}
-      </div>
 
       {/* ── Add Bill Modal ── */}
       {showBillModal && (
@@ -610,6 +634,6 @@ export default function AccountHolderDetail() {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

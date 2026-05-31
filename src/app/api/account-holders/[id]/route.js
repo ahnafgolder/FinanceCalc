@@ -7,6 +7,8 @@ import Bill from '@/models/Bill';
 import Payment from '@/models/Payment';
 import { jsonResponse } from '@/lib/apiResponse';
 import { buildLedger } from '@/lib/ledger';
+import { enrichBillsWithRemaining } from '@/lib/billUtils';
+import { buildHolderDetailSummary } from '@/lib/holderBalances';
 
 export async function GET(request, { params }) {
   try {
@@ -31,19 +33,26 @@ export async function GET(request, { params }) {
     const totalBilled = totalReceivable + totalPayable;
     const totalPaid = totalCollected + totalPaidOut;
 
-    const { entries: ledger } = buildLedger(bills, payments, holder.type);
+    const enrichedBills = await enrichBillsWithRemaining(bills);
+    const { entries: ledger } = buildLedger(enrichedBills, payments, holder.type);
+    const { summary, openStatements } = buildHolderDetailSummary(enrichedBills, payments);
 
     return jsonResponse({
-      holder, bills, payments, ledger,
-      totalBilled, 
-      totalPaid, 
+      holder,
+      bills: enrichedBills,
+      payments,
+      ledger,
+      summary,
+      openStatements,
+      totalBilled,
+      totalPaid,
       outstanding: totalBilled - totalPaid,
       totalReceivable,
       totalPayable,
       totalCollected,
       totalPaidOut,
       outstandingReceivable: totalReceivable - totalCollected,
-      outstandingPayable: totalPayable - totalPaidOut
+      outstandingPayable: totalPayable - totalPaidOut,
     });
   } catch (error) {
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
