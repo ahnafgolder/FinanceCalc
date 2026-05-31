@@ -7,45 +7,38 @@ const isClient = typeof window !== 'undefined';
 const memCache = new Map();
 const inFlight = new Map();
 const listeners = new Map();
-const invalidationListeners = new Set();
+/** Per-URL generation — bumped on invalidate so stale in-flight writes are ignored. */
+const fetchGen = new Map();
 
-/** Bumped on invalidate — in-flight writes from an older epoch are discarded. */
-let cacheEpoch = 0;
-
-const STALE_TIME = 30 * 1000; // 30s — then background revalidate
-const MAX_AGE = 60 * 60 * 1000; // 1 hr — still show stale while revalidating
-
-export function cacheKeyAffected(key, prefix) {
-  return key === prefix || key.startsWith(`${prefix}?`) || key.startsWith(`${prefix}/`);
-}
+const STALE_TIME = 5 * 60 * 1000;
+const MAX_AGE = 60 * 60 * 1000;
 
 function storageKey(key) {
   return `fc_cache_${key}`;
 }
 
-function isEntryValid(entry) {
-  if (!entry || entry.data === undefined) return false;
-  if (entry.epoch !== undefined && entry.epoch !== cacheEpoch) return false;
-  return true;
+function bumpGen(url) {
+  fetchGen.set(url, (fetchGen.get(url) || 0) + 1);
+}
+
+function bumpGenForPrefix(urlPrefix) {
+  for (const key of memCache.keys()) {
+    if (key.startsWith(urlPrefix)) bumpGen(key);
+  }
+  for (const key of inFlight.keys()) {
+    if (key.startsWith(urlPrefix)) bumpGen(key);
+  }
 }
 
 function getStorageItem(key) {
-  if (!isClient) {
-    const entry = memCache.get(key);
-    return isEntryValid(entry) ? entry : null;
-  }
+  if (!isClient) return memCache.get(key);
   try {
     const item = localStorage.getItem(storageKey(key));
-    if (item) {
-      const entry = JSON.parse(item);
-      if (isEntryValid(entry)) return entry;
-      localStorage.removeItem(storageKey(key));
-    }
+    if (item) return JSON.parse(item);
   } catch {
-    // ignore quota / parse errors
+    // ignore
   }
-  const entry = memCache.get(key);
-  return isEntryValid(entry) ? entry : null;
+  return memCache.get(key);
 }
 
 function setStorageItem(key, val) {
@@ -54,7 +47,7 @@ function setStorageItem(key, val) {
   try {
     localStorage.setItem(storageKey(key), JSON.stringify(val));
   } catch {
-    // ignore quota errors
+    // ignore
   }
 }
 
@@ -63,76 +56,25 @@ function notifyListeners(key, data) {
   if (subs) subs.forEach((fn) => fn(data));
 }
 
-function notifyInvalidation(prefix) {
-  invalidationListeners.forEach((fn) => {
-    try {
-      fn(prefix);
-    } catch {
-      // ignore listener errors
-    }
-  });
+export function subscribeCache(url, callback) {
+  if (!listeners.has(url)) listeners.set(url, new Set());
+  listeners.get(url).add(callback);
+  return () => {
+    listeners.get(url)?.delete(callback);
+  };
 }
 
-/** Subscribe to fresh data for an exact cache key (e.g. after refreshCache). */
-export function subscribeCacheKey(key, fn) {
-  if (!listeners.has(key)) listeners.set(key, new Set());
-  listeners.get(key).add(fn);
-  return () => listeners.get(key)?.delete(fn);
-}
-
-/** Subscribe when invalidateCache(prefix) runs — remount/refetch mounted queries. */
-export function subscribeInvalidation(fn) {
-  invalidationListeners.add(fn);
-  return () => invalidationListeners.delete(fn);
-}
-
-function clearInFlightForPrefix(urlPrefix) {
-  for (const key of [...inFlight.keys()]) {
-    if (cacheKeyAffected(key, urlPrefix)) {
-      inFlight.delete(key);
-    }
-  }
-}
-
-function clearCacheKey(key) {
-  memCache.delete(key);
-  if (!isClient) return;
-  try {
-    localStorage.removeItem(storageKey(key));
-  } catch {
-    // ignore
-  }
-}
-
-function clearCacheForPrefix(urlPrefix) {
-  for (const key of [...memCache.keys()]) {
-    if (cacheKeyAffected(key, urlPrefix)) {
-      memCache.delete(key);
-    }
-  }
-  if (!isClient) return;
-  try {
-    const toRemove = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const storageItemKey = localStorage.key(i);
-      if (!storageItemKey?.startsWith('fc_cache_')) continue;
-      const cacheKey = storageItemKey.replace('fc_cache_', '');
-      if (cacheKeyAffected(cacheKey, urlPrefix)) {
-        toRemove.push(storageItemKey);
-      }
-    }
-    toRemove.forEach((k) => localStorage.removeItem(k));
-  } catch {
-    // ignore
-  }
-}
-
-async function fetchAndStore(key, options = {}, epoch = cacheEpoch) {
+async function fetchAndStore(key, options = {}) {
+  const genAtStart = fetchGen.get(key) || 0;
   const res = await apiFetch(key, options);
   if (!res.ok) throw new Error('Fetch failed');
   const data = await res.json();
-  if (epoch !== cacheEpoch) return data;
-  setStorageItem(key, { data, timestamp: Date.now(), epoch: cacheEpoch });
+
+  if ((fetchGen.get(key) || 0) !== genAtStart) {
+    return undefined;
+  }
+
+  setStorageItem(key, { data, timestamp: Date.now() });
   notifyListeners(key, data);
   return data;
 }
@@ -140,40 +82,72 @@ async function fetchAndStore(key, options = {}, epoch = cacheEpoch) {
 function revalidateInBackground(key, options = {}) {
   if (inFlight.has(key)) return inFlight.get(key);
 
-  const epoch = cacheEpoch;
-  const promise = fetchAndStore(key, options, epoch)
+  const promise = fetchAndStore(key, options)
     .catch(() => {})
-    .finally(() => {
-      if (inFlight.get(key) === promise) inFlight.delete(key);
-    });
+    .finally(() => inFlight.delete(key));
 
   inFlight.set(key, promise);
   return promise;
 }
 
 /**
- * Fetch with SWR semantics.
- * - Returns cached data immediately when available.
- * - Revalidates in the background when stale.
- * - Optional onUpdate callback fires when fresh data arrives.
+ * Force a network fetch and update cache (use after mutations).
  */
-export async function cachedFetch(url, options = {}) {
-  const { forceRefresh = false, onUpdate, ...fetchOptions } = options;
-  const now = Date.now();
+export async function refreshCache(url, options = {}) {
+  bumpGen(url);
+  inFlight.delete(url);
+  return fetchAndStore(url, options);
+}
 
-  if (forceRefresh) {
-    clearInFlightForPrefix(url);
+/** Push a new bill into list + holder caches so UI updates immediately. */
+export function syncAfterBillCreate(bill, accountHolderId) {
+  if (!bill?._id) return;
+
+  const billsUrl = '/api/bills';
+  const existingList = getCachedData(billsUrl);
+  if (Array.isArray(existingList)) {
+    const nextList = [bill, ...existingList.filter((b) => b._id !== bill._id)];
+    setStorageItem(billsUrl, { data: nextList, timestamp: Date.now() });
+    notifyListeners(billsUrl, nextList);
   }
 
-  const entry = forceRefresh ? null : getStorageItem(url);
-  const hasCache = !!entry;
+  if (accountHolderId) {
+    const holderUrl = `/api/account-holders/${accountHolderId}`;
+    const holderData = getCachedData(holderUrl);
+    if (holderData?.holder) {
+      const nextBills = [bill, ...(holderData.bills || []).filter((b) => b._id !== bill._id)];
+      const next = { ...holderData, bills: nextBills };
+      setStorageItem(holderUrl, { data: next, timestamp: Date.now() });
+      notifyListeners(holderUrl, next);
+    }
+  }
+}
+
+export async function refreshCachesAfterMutation(accountHolderId) {
+  const tasks = [
+    refreshCache('/api/bills'),
+    refreshCache('/api/payments'),
+    refreshCache('/api/dashboard'),
+    refreshCache('/api/account-holders'),
+  ];
+  if (accountHolderId) {
+    tasks.push(refreshCache(`/api/account-holders/${accountHolderId}`));
+  }
+  await Promise.all(tasks);
+}
+
+export async function cachedFetch(url, options = {}) {
+  const { onUpdate, ...fetchOptions } = options;
+  const now = Date.now();
+  const entry = getStorageItem(url);
+  const hasCache = entry && entry.data !== undefined;
   const age = hasCache ? now - entry.timestamp : Infinity;
 
-  if (!forceRefresh && hasCache && age < STALE_TIME) {
+  if (hasCache && age < STALE_TIME) {
     return entry.data;
   }
 
-  if (!forceRefresh && hasCache && age < MAX_AGE) {
+  if (hasCache && age < MAX_AGE) {
     revalidateInBackground(url, fetchOptions).then((data) => {
       if (data !== undefined && onUpdate) onUpdate(data);
     });
@@ -182,21 +156,17 @@ export async function cachedFetch(url, options = {}) {
 
   if (inFlight.has(url)) {
     const data = await inFlight.get(url);
-    if (onUpdate) onUpdate(data);
+    if (data !== undefined && onUpdate) onUpdate(data);
     return data;
   }
 
-  const epoch = cacheEpoch;
-  const promise = fetchAndStore(url, fetchOptions, epoch).finally(() => {
-    if (inFlight.get(url) === promise) inFlight.delete(url);
-  });
+  const promise = fetchAndStore(url, fetchOptions).finally(() => inFlight.delete(url));
   inFlight.set(url, promise);
   const data = await promise;
-  if (onUpdate) onUpdate(data);
+  if (onUpdate && data !== undefined) onUpdate(data);
   return data;
 }
 
-/** Prefetch without blocking — warms cache for tab switches. */
 export function prefetch(url) {
   const entry = getStorageItem(url);
   const age = entry ? Date.now() - entry.timestamp : Infinity;
@@ -210,46 +180,32 @@ export function getCachedData(url) {
 }
 
 export function invalidateCache(urlPrefix) {
-  cacheEpoch += 1;
-  clearInFlightForPrefix(urlPrefix);
-  clearCacheForPrefix(urlPrefix);
-  notifyInvalidation(urlPrefix);
-}
+  bumpGenForPrefix(urlPrefix);
 
-/** Drop cache and fetch fresh data (use after create/update/delete). */
-export async function refreshCache(url, options = {}) {
-  clearInFlightForPrefix(url);
-  clearCacheKey(url);
-  notifyInvalidation(url);
-  return fetchAndStore(url, options, cacheEpoch);
-}
+  for (const key of memCache.keys()) {
+    if (key.startsWith(urlPrefix)) memCache.delete(key);
+  }
 
-async function syncCaches(keys) {
-  cacheEpoch += 1;
-  keys.forEach((k) => {
-    clearInFlightForPrefix(k);
-    clearCacheForPrefix(k);
-    notifyInvalidation(k);
-  });
-  const epoch = cacheEpoch;
-  await Promise.all(keys.map((k) => fetchAndStore(k, {}, epoch)));
-}
+  for (const key of [...inFlight.keys()]) {
+    if (key.startsWith(urlPrefix)) inFlight.delete(key);
+  }
 
-/** Refresh all list caches after creating/updating a bill. */
-export async function syncAfterBillMutation() {
-  await syncCaches(['/api/bills', '/api/dashboard', '/api/account-holders']);
-}
+  if (!isClient) return;
 
-/** Refresh all list caches after creating/updating a payment. */
-export async function syncAfterPaymentMutation() {
-  await syncCaches([
-    '/api/payments',
-    '/api/bills',
-    '/api/dashboard',
-    '/api/account-holders',
-  ]);
+  try {
+    const toRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const storageItemKey = localStorage.key(i);
+      if (!storageItemKey?.startsWith('fc_cache_')) continue;
+      const cacheKey = storageItemKey.replace('fc_cache_', '');
+      if (cacheKey.startsWith(urlPrefix)) toRemove.push(storageItemKey);
+    }
+    toRemove.forEach((k) => localStorage.removeItem(k));
+  } catch {
+    // ignore
+  }
 }
 
 export function useCachedFetch(url) {
-  return { cachedFetch, getCachedData, invalidateCache, refreshCache, prefetch };
+  return { cachedFetch, getCachedData, invalidateCache, refreshCache, prefetch, syncAfterBillCreate };
 }
