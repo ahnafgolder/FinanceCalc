@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import dbConnect from '@/lib/mongoose';
 import Payment from '@/models/Payment';
 import Bill from '@/models/Bill';
+import { jsonResponse } from '@/lib/apiResponse';
 
 export async function GET(request) {
   try {
@@ -13,10 +14,11 @@ export async function GET(request) {
 
     const payments = await Payment.find({ userId: session.user.id })
       .sort({ paymentDate: -1 })
+      .select('amount type paymentMethod referenceNumber note paymentDate createdAt accountHolderId billId')
       .populate('accountHolderId', 'name')
       .populate('billId', 'billNumber')
       .lean();
-    return NextResponse.json(payments);
+    return jsonResponse(payments);
   } catch (error) {
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
@@ -37,15 +39,15 @@ export async function POST(request) {
     const paymentType = bill.type === 'payable' ? 'paid' : 'received';
     const payment = await Payment.create({ ...body, type: paymentType, userId: session.user.id });
 
-    // Update bill status
-    if (bill) {
-      const allPayments = await Payment.find({ billId: bill._id });
-      const totalPaid = allPayments.reduce((s, p) => s + p.amount, 0);
-      if (totalPaid >= bill.totalAmount) bill.status = 'paid';
-      else if (totalPaid > 0) bill.status = 'partial';
-      else bill.status = 'unpaid';
-      await bill.save();
-    }
+    const [{ totalPaid = 0 } = {}] = await Payment.aggregate([
+      { $match: { billId: bill._id } },
+      { $group: { _id: null, totalPaid: { $sum: '$amount' } } },
+    ]);
+
+    if (totalPaid >= bill.totalAmount) bill.status = 'paid';
+    else if (totalPaid > 0) bill.status = 'partial';
+    else bill.status = 'unpaid';
+    await bill.save();
 
     return NextResponse.json(payment, { status: 201 });
   } catch (error) {

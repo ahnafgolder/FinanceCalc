@@ -4,12 +4,14 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useLanguage } from '@/components/LanguageContext';
 import { invalidateCache } from '@/lib/fetchCache';
+import { apiFetch } from '@/lib/api';
+import { useCachedQuery } from '@/hooks/useCachedQuery';
 
 export default function AccountHolderDetail() {
   const { id } = useParams();
   const router = useRouter();
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const apiUrl = `/api/account-holders/${id}`;
+  const { data, isLoading, refetch } = useCachedQuery(apiUrl, [id]);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({});
   const { t, fmt, fmtDate } = useLanguage();
@@ -31,24 +33,30 @@ export default function AccountHolderDetail() {
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7));
 
-  const fetchData = () => {
-    setLoading(true);
-    fetch(`/api/account-holders/${id}`).then(r => r.json()).then(d => { setData(d); setForm(d.holder || {}); setLoading(false); });
+  useEffect(() => {
+    if (data?.holder) setForm(data.holder);
+  }, [data]);
+
+  const refresh = () => {
+    invalidateCache('/api/account-holders');
+    invalidateCache('/api/bills');
+    invalidateCache('/api/payments');
+    invalidateCache('/api/dashboard');
+    refetch();
   };
-  useEffect(() => { fetchData(); }, [id]);
 
   const handleUpdate = async (e) => {
     e.preventDefault();
-    await fetch(`/api/account-holders/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
+    await apiFetch(`/api/account-holders/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
     invalidateCache('/api/account-holders');
     invalidateCache('/api/dashboard');
     setEditing(false);
-    fetchData();
+    refresh();
   };
 
   const handleDelete = async () => {
     if (!confirm(t('accountHolders.deleteConfirm'))) return;
-    await fetch(`/api/account-holders/${id}`, { method: 'DELETE' });
+    await apiFetch(`/api/account-holders/${id}`, { method: 'DELETE' });
     invalidateCache('/api/account-holders');
     invalidateCache('/api/dashboard');
     router.push('/account-holders');
@@ -61,7 +69,7 @@ export default function AccountHolderDetail() {
     setBillSaving(true);
     setBillError('');
     try {
-      const res = await fetch('/api/bills', {
+      const res = await apiFetch('/api/bills', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: billForm.type, accountHolderId: id, description: billForm.description, totalAmount: parseFloat(billForm.totalAmount), dueDate: billForm.dueDate || null }),
@@ -73,7 +81,7 @@ export default function AccountHolderDetail() {
       invalidateCache('/api/bills');
       invalidateCache('/api/dashboard');
       invalidateCache('/api/account-holders');
-      fetchData();
+      refresh();
     } catch { setBillError('Something went wrong'); }
     setBillSaving(false);
   };
@@ -85,7 +93,7 @@ export default function AccountHolderDetail() {
     setPaySaving(true);
     setPayError('');
     try {
-      const res = await fetch('/api/payments', {
+      const res = await apiFetch('/api/payments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...payForm, amount: parseFloat(payForm.amount), billId: payBillId, accountHolderId: id }),
@@ -99,7 +107,7 @@ export default function AccountHolderDetail() {
       invalidateCache('/api/bills');
       invalidateCache('/api/dashboard');
       invalidateCache('/api/account-holders');
-      fetchData();
+      refresh();
     } catch { setPayError(t('accountHolders.failedDelete')); }
     setPaySaving(false);
   };
@@ -107,25 +115,25 @@ export default function AccountHolderDetail() {
   // ── Delete Bill ──
   const handleDeleteBill = async (billId) => {
     if (!confirm(t('accountHolderDetail.deleteBillConfirm'))) return;
-    const res = await fetch(`/api/bills/${billId}`, { method: 'DELETE' });
+    const res = await apiFetch(`/api/bills/${billId}`, { method: 'DELETE' });
     const d = await res.json();
     if (!res.ok) { alert(d.error); return; }
     invalidateCache('/api/bills');
     invalidateCache('/api/dashboard');
     invalidateCache('/api/account-holders');
-    fetchData();
+    refresh();
   };
 
   // ── Delete Payment ──
   const handleDeletePayment = async (paymentId) => {
     if (!confirm(t('accountHolderDetail.deletePaymentConfirm'))) return;
-    const res = await fetch(`/api/payments/${paymentId}`, { method: 'DELETE' });
+    const res = await apiFetch(`/api/payments/${paymentId}`, { method: 'DELETE' });
     if (!res.ok) { alert('Failed to delete payment'); return; }
     invalidateCache('/api/payments');
     invalidateCache('/api/bills');
     invalidateCache('/api/dashboard');
     invalidateCache('/api/account-holders');
-    fetchData();
+    refresh();
   };
 
   // ── Generate Report ──
@@ -149,7 +157,7 @@ export default function AccountHolderDetail() {
     setReportMode(null);
   };
 
-  if (loading) return <div className="loading-spinner"><div className="spinner"></div></div>;
+  if (isLoading) return <div className="loading-spinner"><div className="spinner"></div></div>;
   if (!data?.holder) return <div className="empty-state"><h3>{t('common.noData')}</h3></div>;
 
   const h = data.holder;

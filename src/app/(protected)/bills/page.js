@@ -1,24 +1,23 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { cachedFetch, getCachedData, invalidateCache } from '@/lib/fetchCache';
+import { useCachedQuery } from '@/hooks/useCachedQuery';
 import { useLanguage } from '@/components/LanguageContext';
 
 export default function BillsPage() {
   const router = useRouter();
-  const [bills, setBills] = useState(() => getCachedData('/api/bills') || []);
-  const [loading, setLoading] = useState(bills.length === 0);
+  const { data: allBills, isLoading } = useCachedQuery('/api/bills');
   const [statusFilter, setStatusFilter] = useState('');
   const { t, fmt, fmtDate } = useLanguage();
 
-  useEffect(() => {
-    const params = statusFilter ? `?status=${statusFilter}` : '';
-    const url = `/api/bills${params}`;
-    cachedFetch(url).then(d => { setBills(d); setLoading(false); });
-  }, [statusFilter]);
+  const bills = useMemo(() => {
+    if (!allBills) return [];
+    if (!statusFilter) return allBills;
+    return allBills.filter((b) => b.status === statusFilter);
+  }, [allBills, statusFilter]);
 
-  if (loading) return <div className="loading-spinner"><div className="spinner"></div></div>;
+  if (isLoading) return <div className="loading-spinner"><div className="spinner"></div></div>;
 
   return (
     <>
@@ -31,7 +30,7 @@ export default function BillsPage() {
       </div>
 
       <div className="filters-bar">
-        <select className="form-control" value={statusFilter} onChange={e => { setLoading(true); setStatusFilter(e.target.value); }}>
+        <select className="form-control" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
           <option value="">{t('bills.allStatus')}</option>
           <option value="unpaid">{t('accountHolderDetail.statusUnpaid')}</option>
           <option value="partial">{t('accountHolderDetail.statusPartial')}</option>

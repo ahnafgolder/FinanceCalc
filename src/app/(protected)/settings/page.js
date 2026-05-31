@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { apiFetch } from '@/lib/api';
 import { useSession, signOut } from 'next-auth/react';
 import { useLanguage } from '@/components/LanguageContext';
 
@@ -26,7 +27,7 @@ export default function SettingsPage() {
 
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/change-password', {
+      const res = await apiFetch('/api/auth/change-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

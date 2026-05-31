@@ -25,3 +25,6 @@ npm-debug.log*
 
 # vercel
 .vercel
+
+# mobile build
+.mobile-build-stash-api

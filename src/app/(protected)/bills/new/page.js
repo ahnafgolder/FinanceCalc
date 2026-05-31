@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useLanguage } from '@/components/LanguageContext';
 import { invalidateCache } from '@/lib/fetchCache';
+import { apiFetch } from '@/lib/api';
 
 function NewBillForm() {
   const router = useRouter();
@@ -25,14 +26,14 @@ function NewBillForm() {
     }
   }, [selectedHolder]);
 
-  useEffect(() => { fetch('/api/account-holders').then(r => r.json()).then(setHolders); }, []);
+  useEffect(() => { apiFetch('/api/account-holders').then(r => r.json()).then(setHolders); }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
     setError('');
     try {
-      const res = await fetch('/api/bills', {
+      const res = await apiFetch('/api/bills', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...form, totalAmount: parseFloat(form.totalAmount), dueDate: form.dueDate || null }),

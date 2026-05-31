@@ -5,10 +5,17 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "build:mobile": "node scripts/build-mobile.js",
+    "sync:android": "npx cap sync android",
+    "android": "npm run build:mobile && npm run sync:android",
+    "open:android": "npx cap open android"
   },
   "dependencies": {
+    "@capacitor/app": "^8.0.1",
     "@capacitor/core": "^8.3.4",
+    "@capacitor/splash-screen": "^8.0.1",
+    "@capacitor/status-bar": "^8.0.1",
     "bcryptjs": "^2.4.3",
     "mongoose": "^8.3.4",
     "next": "14.2.3",

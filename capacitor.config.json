@@ -2,8 +2,19 @@
   "appId": "com.financecalc.app",
   "appName": "FinanceCalc",
   "webDir": "out",
-  "server": {
-    "url": "https://gojofinance.vercel.app/",
-    "cleartext": true
+  "android": {
+    "backgroundColor": "#0a0e1a"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchAutoHide": false,
+      "backgroundColor": "#0a0e1a",
+      "showSpinner": true,
+      "spinnerColor": "#f59e0b"
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#0a0e1a"
+    }
   }
 }

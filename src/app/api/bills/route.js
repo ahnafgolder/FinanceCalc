@@ -5,6 +5,7 @@ import dbConnect from '@/lib/mongoose';
 import Bill from '@/models/Bill';
 import Payment from '@/models/Payment';
 import AccountHolder from '@/models/AccountHolder';
+import { jsonResponse } from '@/lib/apiResponse';
 
 export async function GET(request) {
   try {
@@ -17,8 +18,13 @@ export async function GET(request) {
     if (searchParams.get('status')) query.status = searchParams.get('status');
     if (searchParams.get('accountHolderId')) query.accountHolderId = searchParams.get('accountHolderId');
 
-    const bills = await Bill.find(query).sort({ createdAt: -1 }).populate('accountHolderId', 'name').lean();
-    return NextResponse.json(bills);
+    const bills = await Bill.find(query)
+      .sort({ createdAt: -1 })
+      .select('billNumber description totalAmount dueDate type status createdAt accountHolderId')
+      .populate('accountHolderId', 'name')
+      .lean();
+
+    return jsonResponse(bills);
   } catch (error) {
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }

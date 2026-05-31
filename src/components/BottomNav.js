@@ -1,6 +1,8 @@
 'use client';
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { prefetch } from '@/lib/fetchCache';
 import { useLanguage } from './LanguageContext';
 
 const navItems = [
@@ -14,6 +16,13 @@ const navItems = [
 export default function BottomNav() {
   const pathname = usePathname();
   const { t } = useLanguage();
+
+  useEffect(() => {
+    prefetch('/api/dashboard');
+    prefetch('/api/bills');
+    prefetch('/api/account-holders');
+    prefetch('/api/payments');
+  }, [pathname]);
 
   return (
     <nav className="bottom-nav">

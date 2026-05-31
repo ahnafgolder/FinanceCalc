@@ -58,4 +58,6 @@ const AccountHolderSchema = new mongoose.Schema({
   },
 });
 
+AccountHolderSchema.index({ userId: 1, createdAt: -1 });
+
 export default mongoose.models.AccountHolder || mongoose.model('AccountHolder', AccountHolderSchema);

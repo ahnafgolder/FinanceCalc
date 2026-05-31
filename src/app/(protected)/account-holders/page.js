@@ -1,36 +1,38 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { cachedFetch, getCachedData, invalidateCache } from '@/lib/fetchCache';
+import { cachedFetch, invalidateCache } from '@/lib/fetchCache';
+import { apiFetch } from '@/lib/api';
+import { useCachedQuery } from '@/hooks/useCachedQuery';
 import { useLanguage } from '@/components/LanguageContext';
 
 export default function AccountHolders() {
   const router = useRouter();
-  const [holders, setHolders] = useState(() => getCachedData('/api/account-holders') || []);
-  const [loading, setLoading] = useState(holders.length === 0);
+  const { data: holders, isLoading, refetch } = useCachedQuery('/api/account-holders');
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ name: '', type: 'vendor', bankAccountName: '', bankAccountNumber: '', bankName: '', phone: '', email: '', address: '', notes: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const { t, fmt } = useLanguage();
 
-  const fetchData = () => cachedFetch('/api/account-holders').then(d => { setHolders(d); setLoading(false); });
-  useEffect(() => { fetchData(); }, []);
+  const refresh = () => {
+    invalidateCache('/api/dashboard');
+    refetch();
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
     setError('');
     try {
-      const res = await fetch('/api/account-holders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
+      const res = await apiFetch('/api/account-holders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
       const data = await res.json();
       if (!res.ok) { setError(data.error); setSaving(false); return; }
       setShowModal(false);
       setForm({ name: '', type: 'vendor', bankAccountName: '', bankAccountNumber: '', bankName: '', phone: '', email: '', address: '', notes: '' });
       invalidateCache('/api/account-holders');
-      invalidateCache('/api/dashboard');
-      fetchData();
+      refresh();
     } catch { setError(t('accountHolders.failedDelete')); }
     setSaving(false);
   };
@@ -42,7 +44,9 @@ export default function AccountHolders() {
     return type;
   };
 
-  if (loading) return <div className="loading-spinner"><div className="spinner"></div></div>;
+  if (isLoading) return <div className="loading-spinner"><div className="spinner"></div></div>;
+
+  const list = holders || [];
 
   return (
     <>
@@ -54,7 +58,7 @@ export default function AccountHolders() {
         <button className="btn btn-primary" onClick={() => setShowModal(true)}>{t('accountHolders.newHolder')}</button>
       </div>
 
-      {holders.length > 0 ? (
+      {list.length > 0 ? (
         <div className="card">
           <div className="table-container">
             <table>
@@ -70,7 +74,7 @@ export default function AccountHolders() {
                 </tr>
               </thead>
               <tbody>
-                {holders.map(h => (
+                {list.map(h => (
                   <tr key={h._id} onClick={() => router.push(`/account-holders/${h._id}`)} style={{ cursor: 'pointer' }}>
                     <td style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{h.name}</td>
                     <td><span className={`badge badge-${h.type}`}>{getHolderTypeLabel(h.type)}</span></td>

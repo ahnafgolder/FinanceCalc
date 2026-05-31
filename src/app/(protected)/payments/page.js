@@ -1,30 +1,27 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { cachedFetch, getCachedData, invalidateCache } from '@/lib/fetchCache';
+import { cachedFetch, invalidateCache } from '@/lib/fetchCache';
+import { apiFetch } from '@/lib/api';
+import { useCachedQuery } from '@/hooks/useCachedQuery';
 import { useLanguage } from '@/components/LanguageContext';
 
 export default function PaymentsPage() {
-  const [payments, setPayments] = useState(() => getCachedData('/api/payments') || []);
-  const [loading, setLoading] = useState(payments.length === 0);
+  const { data: payments, isLoading, refetch } = useCachedQuery('/api/payments');
   const { t, fmt, fmtDate } = useLanguage();
-
-  const fetchData = () => cachedFetch('/api/payments').then(d => { setPayments(d); setLoading(false); });
-  useEffect(() => { fetchData(); }, []);
 
   const handleDelete = async (id) => {
     if (!confirm(t('accountHolderDetail.deletePaymentConfirm'))) return;
-    await fetch(`/api/payments/${id}`, { method: 'DELETE' });
+    await apiFetch(`/api/payments/${id}`, { method: 'DELETE' });
     invalidateCache('/api/payments');
     invalidateCache('/api/dashboard');
     invalidateCache('/api/bills');
     invalidateCache('/api/account-holders');
-    setLoading(true);
-    fetchData();
+    refetch();
   };
 
-  if (loading) return <div className="loading-spinner"><div className="spinner"></div></div>;
+  if (isLoading) return <div className="loading-spinner"><div className="spinner"></div></div>;
 
-  const total = payments.reduce((s, p) => s + p.amount, 0);
+  const list = payments || [];
+  const total = list.reduce((s, p) => s + p.amount, 0);
 
   return (
     <>
@@ -35,7 +32,7 @@ export default function PaymentsPage() {
         </div>
       </div>
 
-      {payments.length > 0 ? (
+      {list.length > 0 ? (
         <div className="card">
           <div className="table-container">
             <table>
@@ -53,7 +50,7 @@ export default function PaymentsPage() {
                 </tr>
               </thead>
               <tbody>
-                {payments.map(p => (
+                {list.map(p => (
                   <tr key={p._id}>
                     <td>{fmtDate(p.paymentDate)}</td>
                     <td className="hide-mobile"><span className={`badge badge-${p.type === 'received' ? 'success' : 'danger'}`}>{p.type === 'received' ? t('accountHolderDetail.payTypeR') : t('accountHolderDetail.payTypeP')}</span></td>

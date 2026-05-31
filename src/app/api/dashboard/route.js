@@ -6,6 +6,7 @@ import AccountHolder from '@/models/AccountHolder';
 import Bill from '@/models/Bill';
 import Payment from '@/models/Payment';
 import mongoose from 'mongoose';
+import { jsonResponse } from '@/lib/apiResponse';
 
 export async function GET() {
   try {
@@ -79,7 +80,7 @@ export async function GET() {
     const b = billAgg[0] || { totalReceivable: 0, totalPayable: 0, totalBills: 0, unpaidBills: 0, monthReceivable: 0 };
     const p = paymentAgg[0] || { totalCollected: 0, totalPaidOut: 0, monthCollected: 0, monthPaidOut: 0 };
 
-    return NextResponse.json({
+    return jsonResponse({
       stats: {
         totalHolders,
         totalBills: b.totalBills,

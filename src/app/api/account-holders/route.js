@@ -6,6 +6,7 @@ import AccountHolder from '@/models/AccountHolder';
 import Bill from '@/models/Bill';
 import Payment from '@/models/Payment';
 import mongoose from 'mongoose';
+import { jsonResponse } from '@/lib/apiResponse';
 
 export async function GET() {
   try {
@@ -78,7 +79,7 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json(holdersWithBalance);
+    return jsonResponse(holdersWithBalance);
   } catch (error) {
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }

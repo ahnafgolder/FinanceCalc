@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { apiFetch } from '@/lib/api';
 import { useSession } from 'next-auth/react';
 import { useLanguage } from '@/components/LanguageContext';
 
@@ -21,7 +22,7 @@ export default function UsersPage() {
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch('/api/admin/users');
+      const res = await apiFetch('/api/admin/users');
       if (res.ok) {
         const data = await res.json();
         setUsers(data);
@@ -49,7 +50,7 @@ export default function UsersPage() {
 
     setResetLoading(true);
     try {
-      const res = await fetch(`/api/admin/users/${resetModal._id}/reset-password`, {
+      const res = await apiFetch(`/api/admin/users/${resetModal._id}/reset-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ newPassword: resetForm.newPassword }),
@@ -83,7 +84,7 @@ export default function UsersPage() {
 
     setTogglingId(user._id);
     try {
-      const res = await fetch(`/api/admin/users/${user._id}/toggle-status`, {
+      const res = await apiFetch(`/api/admin/users/${user._id}/toggle-status`, {
         method: 'POST',
       });
       const data = await res.json();

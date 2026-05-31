@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth';
 import dbConnect from '@/lib/mongoose';
 import Bill from '@/models/Bill';
 import Payment from '@/models/Payment';
+import mongoose from 'mongoose';
+import { jsonResponse } from '@/lib/apiResponse';
 
 export async function GET(request, { params }) {
   try {
@@ -11,13 +13,19 @@ export async function GET(request, { params }) {
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     await dbConnect();
 
-    const bill = await Bill.findOne({ _id: params.id, userId: session.user.id }).populate('accountHolderId').lean();
+    const billId = params.id;
+    const userId = session.user.id;
+
+    const [bill, payments] = await Promise.all([
+      Bill.findOne({ _id: billId, userId }).populate('accountHolderId').lean(),
+      Payment.find({ billId }).sort({ paymentDate: -1 }).lean(),
+    ]);
+
     if (!bill) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-    const payments = await Payment.find({ billId: bill._id }).sort({ paymentDate: -1 }).lean();
     const totalPaid = payments.reduce((s, p) => s + p.amount, 0);
 
-    return NextResponse.json({ bill, payments, totalPaid, remaining: bill.totalAmount - totalPaid });
+    return jsonResponse({ bill, payments, totalPaid, remaining: bill.totalAmount - totalPaid });
   } catch (error) {
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }

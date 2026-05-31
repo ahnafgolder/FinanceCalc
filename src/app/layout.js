@@ -1,4 +1,6 @@
 import './globals.css';
+import AuthProvider from '@/components/AuthProvider';
+import NativeShell from '@/components/NativeShell';
 
 export const metadata = {
   title: 'FinanceCalc — Billing & Payment Manager',
@@ -27,7 +29,12 @@ export default function RootLayout({ children }) {
         <meta name="mobile-web-app-capable" content="yes" />
         <link rel="apple-touch-icon" href="/icon-192.svg" />
       </head>
-      <body>{children}</body>
+      <body>
+        <AuthProvider>
+          <NativeShell />
+          {children}
+        </AuthProvider>
+      </body>
     </html>
   );
 }

@@ -1,19 +1,13 @@
 'use client';
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { cachedFetch, getCachedData } from '@/lib/fetchCache';
+import { useCachedQuery } from '@/hooks/useCachedQuery';
 import { useLanguage } from '@/components/LanguageContext';
 
 export default function Dashboard() {
-  const [data, setData] = useState(() => getCachedData('/api/dashboard'));
-  const [loading, setLoading] = useState(!data);
+  const { data, isLoading } = useCachedQuery('/api/dashboard');
   const { t, fmt, fmtDate } = useLanguage();
 
-  useEffect(() => {
-    cachedFetch('/api/dashboard').then(d => { setData(d); setLoading(false); }).catch(() => setLoading(false));
-  }, []);
-
-  if (loading) return <div className="loading-spinner"><div className="spinner"></div></div>;
+  if (isLoading) return <div className="loading-spinner"><div className="spinner"></div></div>;
 
   const s = data?.stats || {};
 
@@ -85,7 +79,7 @@ export default function Dashboard() {
                 </tbody>
               </table>
             </div>
-          ) : <div className="empty-state"><p>{t('dashboard.noBills')}</p></div>}
+          ) : <p style={{ padding: '16px', color: 'var(--text-muted)' }}>{t('common.noData')}</p>}
         </div>
 
         <div className="card">
@@ -98,25 +92,23 @@ export default function Dashboard() {
               <table>
                 <thead>
                   <tr>
-                    <th>{t('common.date')}</th>
                     <th>{t('dashboard.account')}</th>
-                    <th>{t('dashboard.billNo')}</th>
                     <th>{t('common.amount')}</th>
+                    <th>{t('bills.billNumber')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {data.recentPayments.map(p => (
                     <tr key={p._id}>
-                      <td>{fmtDate(p.paymentDate)}</td>
                       <td>{p.accountHolderId?.name || '—'}</td>
-                      <td>{p.billId?.billNumber || '—'}</td>
                       <td style={{ color: 'var(--success)' }}>{fmt(p.amount)}</td>
+                      <td>{p.billId?.billNumber || '—'}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          ) : <div className="empty-state"><p>{t('dashboard.noPayments')}</p></div>}
+          ) : <p style={{ padding: '16px', color: 'var(--text-muted)' }}>{t('common.noData')}</p>}
         </div>
       </div>
     </>

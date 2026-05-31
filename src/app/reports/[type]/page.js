@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, Suspense } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
+import { apiFetch } from '@/lib/api';
 
 /* ── Translations ── */
 const translations = {
@@ -330,7 +331,7 @@ function ReportViewerContent() {
     if (endDate) params.set('endDate', endDate);
     if (searchParams.get('holderId')) params.set('holderId', searchParams.get('holderId'));
 
-    fetch(`/api/reports?${params.toString()}`)
+    apiFetch(`/api/reports?${params.toString()}`)
       .then(r => r.json())
       .then(d => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));

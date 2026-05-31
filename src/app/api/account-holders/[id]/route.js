@@ -5,6 +5,7 @@ import dbConnect from '@/lib/mongoose';
 import AccountHolder from '@/models/AccountHolder';
 import Bill from '@/models/Bill';
 import Payment from '@/models/Payment';
+import { jsonResponse } from '@/lib/apiResponse';
 
 export async function GET(request, { params }) {
   try {
@@ -29,7 +30,7 @@ export async function GET(request, { params }) {
     const totalBilled = totalReceivable + totalPayable;
     const totalPaid = totalCollected + totalPaidOut;
 
-    return NextResponse.json({ 
+    return jsonResponse({ 
       holder, bills, payments, 
       totalBilled, 
       totalPaid, 

@@ -17,42 +17,42 @@ if (!cached) {
 }
 
 async function dbConnect() {
-  const start = Date.now();
-
   if (cached.conn) {
-    console.log(`[DB] Connection reused in ${Date.now() - start}ms`);
     return cached.conn;
   }
 
   if (!cached.promise) {
-    // Set maxPoolSize to 10 and minPoolSize to 1 to allow parallel server-side queries under high load and page refreshes
     const opts = {
       bufferCommands: false,
       maxPoolSize: 10,
-      minPoolSize: 1,
-      serverSelectionTimeoutMS: 3000,
-      socketTimeoutMS: 30000,
-      connectTimeoutMS: 5000,
-      family: 4,                      // IPv4 only
-      autoIndex: false,               // Do not build indexes on the fly
+      minPoolSize: 2,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+      connectTimeoutMS: 10000,
+      family: 4,
+      autoIndex: false,
     };
 
-    console.log('[DB] Establishing new database connection promise...');
-    cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
-      console.log(`[DB] New connection successfully established in ${Date.now() - start}ms`);
-      return mongoose;
-    });
+    cached.promise = mongoose.connect(MONGODB_URI, opts).then((conn) => conn);
   }
 
   try {
     cached.conn = await cached.promise;
   } catch (e) {
     cached.promise = null;
-    console.error(`[DB] Connection failed after ${Date.now() - start}ms:`, e.message);
     throw e;
   }
 
   return cached.conn;
+}
+
+// Warm connection on cold serverless starts (skipped during build)
+if (
+  typeof window === 'undefined' &&
+  process.env.MONGODB_URI &&
+  process.env.NEXT_PHASE !== 'phase-production-build'
+) {
+  dbConnect().catch(() => {});
 }
 
 export default dbConnect;

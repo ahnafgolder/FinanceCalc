@@ -1,27 +1,34 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useLanguage } from '@/components/LanguageContext';
 import { invalidateCache } from '@/lib/fetchCache';
+import { apiFetch } from '@/lib/api';
+import { useCachedQuery } from '@/hooks/useCachedQuery';
 
 export default function BillDetail() {
   const { id } = useParams();
   const router = useRouter();
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const apiUrl = `/api/bills/${id}`;
+  const { data, isLoading, refetch } = useCachedQuery(apiUrl, [id]);
   const [showPayment, setShowPayment] = useState(false);
   const [payForm, setPayForm] = useState({ amount: '', paymentMethod: 'cash', referenceNumber: '', note: '', paymentDate: new Date().toISOString().split('T')[0] });
   const [saving, setSaving] = useState(false);
   const { t, fmt, fmtDate } = useLanguage();
 
-  const fetchData = () => fetch(`/api/bills/${id}`).then(r => r.json()).then(d => { setData(d); setLoading(false); });
-  useEffect(() => { fetchData(); }, [id]);
+  const refresh = () => {
+    invalidateCache('/api/payments');
+    invalidateCache('/api/bills');
+    invalidateCache('/api/dashboard');
+    invalidateCache('/api/account-holders');
+    refetch();
+  };
 
   const handlePayment = async (e) => {
     e.preventDefault();
     setSaving(true);
-    const res = await fetch('/api/payments', {
+    const res = await apiFetch('/api/payments', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...payForm, amount: parseFloat(payForm.amount), billId: id, accountHolderId: data.bill.accountHolderId._id }),
@@ -30,25 +37,21 @@ export default function BillDetail() {
       setShowPayment(false);
       setPayForm({ amount: '', paymentMethod: 'cash', referenceNumber: '', note: '', paymentDate: new Date().toISOString().split('T')[0] });
       setLoading(true);
-      invalidateCache('/api/payments');
-      invalidateCache('/api/bills');
-      invalidateCache('/api/dashboard');
-      invalidateCache('/api/account-holders');
-      fetchData();
+      refresh();
     }
     setSaving(false);
   };
 
   const handleDelete = async () => {
     if (!confirm(t('accountHolderDetail.deleteBillConfirm'))) return;
-    await fetch(`/api/bills/${id}`, { method: 'DELETE' });
+    await apiFetch(`/api/bills/${id}`, { method: 'DELETE' });
     invalidateCache('/api/bills');
     invalidateCache('/api/dashboard');
     invalidateCache('/api/account-holders');
     router.push('/bills');
   };
 
-  if (loading) return <div className="loading-spinner"><div className="spinner"></div></div>;
+  if (isLoading) return <div className="loading-spinner"><div className="spinner"></div></div>;
   if (!data?.bill) return <div className="empty-state"><h3>{t('common.noData')}</h3></div>;
 
   const b = data.bill;
