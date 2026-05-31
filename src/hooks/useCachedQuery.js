@@ -1,7 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { cachedFetch, getCachedData, invalidateCache } from '@/lib/fetchCache';
+import {
+  cachedFetch,
+  cacheKeyAffected,
+  getCachedData,
+  invalidateCache,
+  subscribeCacheKey,
+  subscribeInvalidation,
+} from '@/lib/fetchCache';
 
 /** Load API data with instant cache display and background refresh. */
 export function useCachedQuery(url, deps = []) {
@@ -12,6 +19,22 @@ export function useCachedQuery(url, deps = []) {
   const refetch = useCallback(() => {
     invalidateCache(url);
     setTick((n) => n + 1);
+  }, [url]);
+
+  // When another screen mutates data, refetch if this query uses that cache key
+  useEffect(() => {
+    return subscribeInvalidation((prefix) => {
+      if (cacheKeyAffected(url, prefix)) {
+        setTick((n) => n + 1);
+      }
+    });
+  }, [url]);
+
+  // When refreshCache() finishes elsewhere, update this screen immediately
+  useEffect(() => {
+    return subscribeCacheKey(url, (fresh) => {
+      setData(fresh);
+    });
   }, [url]);
 
   useEffect(() => {

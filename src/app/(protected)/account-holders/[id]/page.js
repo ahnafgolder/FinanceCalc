@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useLanguage } from '@/components/LanguageContext';
-import { invalidateCache, refreshCache } from '@/lib/fetchCache';
+import { invalidateCache, syncAfterBillMutation, syncAfterPaymentMutation } from '@/lib/fetchCache';
 import { apiFetch } from '@/lib/api';
 import { useCachedQuery } from '@/hooks/useCachedQuery';
 import { buildWhatsAppStatement, getPrimaryOutstanding, openWhatsAppShare } from '@/lib/ledger';
@@ -90,9 +90,7 @@ export default function AccountHolderDetail() {
       if (!res.ok) { setBillError(d.error); setBillSaving(false); return; }
       setShowBillModal(false);
       setBillForm({ category: 'bill', type: 'receivable', description: '', totalAmount: '', dueDate: '', installmentAmount: '', installmentFrequency: 'monthly', interestRate: '0', nextDueDate: '' });
-      invalidateCache('/api/dashboard');
-      invalidateCache('/api/account-holders');
-      await refreshCache('/api/bills');
+      await syncAfterBillMutation();
       refresh();
     } catch { setBillError('Something went wrong'); }
     setBillSaving(false);
@@ -115,10 +113,7 @@ export default function AccountHolderDetail() {
       setShowPayModal(false);
       setPayForm({ amount: '', paymentMethod: 'cash', referenceNumber: '', note: '', paymentDate: new Date().toISOString().split('T')[0] });
       setPayBillId('');
-      invalidateCache('/api/payments');
-      invalidateCache('/api/bills');
-      invalidateCache('/api/dashboard');
-      invalidateCache('/api/account-holders');
+      await syncAfterPaymentMutation();
       refresh();
     } catch { setPayError(t('accountHolders.failedDelete')); }
     setPaySaving(false);
@@ -130,9 +125,7 @@ export default function AccountHolderDetail() {
     const res = await apiFetch(`/api/bills/${billId}`, { method: 'DELETE' });
     const d = await res.json();
     if (!res.ok) { alert(d.error); return; }
-    invalidateCache('/api/bills');
-    invalidateCache('/api/dashboard');
-    invalidateCache('/api/account-holders');
+    await syncAfterBillMutation();
     refresh();
   };
 
@@ -141,10 +134,7 @@ export default function AccountHolderDetail() {
     if (!confirm(t('accountHolderDetail.deletePaymentConfirm'))) return;
     const res = await apiFetch(`/api/payments/${paymentId}`, { method: 'DELETE' });
     if (!res.ok) { alert('Failed to delete payment'); return; }
-    invalidateCache('/api/payments');
-    invalidateCache('/api/bills');
-    invalidateCache('/api/dashboard');
-    invalidateCache('/api/account-holders');
+    await syncAfterPaymentMutation();
     refresh();
   };
 

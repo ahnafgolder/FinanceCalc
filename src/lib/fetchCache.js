@@ -7,12 +7,17 @@ const isClient = typeof window !== 'undefined';
 const memCache = new Map();
 const inFlight = new Map();
 const listeners = new Map();
+const invalidationListeners = new Set();
 
 /** Bumped on invalidate — in-flight writes from an older epoch are discarded. */
 let cacheEpoch = 0;
 
-const STALE_TIME = 5 * 60 * 1000; // 5 min — skip network if fresh
+const STALE_TIME = 30 * 1000; // 30s — then background revalidate
 const MAX_AGE = 60 * 60 * 1000; // 1 hr — still show stale while revalidating
+
+export function cacheKeyAffected(key, prefix) {
+  return key === prefix || key.startsWith(`${prefix}?`) || key.startsWith(`${prefix}/`);
+}
 
 function storageKey(key) {
   return `fc_cache_${key}`;
@@ -58,11 +63,67 @@ function notifyListeners(key, data) {
   if (subs) subs.forEach((fn) => fn(data));
 }
 
+function notifyInvalidation(prefix) {
+  invalidationListeners.forEach((fn) => {
+    try {
+      fn(prefix);
+    } catch {
+      // ignore listener errors
+    }
+  });
+}
+
+/** Subscribe to fresh data for an exact cache key (e.g. after refreshCache). */
+export function subscribeCacheKey(key, fn) {
+  if (!listeners.has(key)) listeners.set(key, new Set());
+  listeners.get(key).add(fn);
+  return () => listeners.get(key)?.delete(fn);
+}
+
+/** Subscribe when invalidateCache(prefix) runs — remount/refetch mounted queries. */
+export function subscribeInvalidation(fn) {
+  invalidationListeners.add(fn);
+  return () => invalidationListeners.delete(fn);
+}
+
 function clearInFlightForPrefix(urlPrefix) {
   for (const key of [...inFlight.keys()]) {
-    if (key === urlPrefix || key.startsWith(`${urlPrefix}?`) || key.startsWith(`${urlPrefix}/`)) {
+    if (cacheKeyAffected(key, urlPrefix)) {
       inFlight.delete(key);
     }
+  }
+}
+
+function clearCacheKey(key) {
+  memCache.delete(key);
+  if (!isClient) return;
+  try {
+    localStorage.removeItem(storageKey(key));
+  } catch {
+    // ignore
+  }
+}
+
+function clearCacheForPrefix(urlPrefix) {
+  for (const key of [...memCache.keys()]) {
+    if (cacheKeyAffected(key, urlPrefix)) {
+      memCache.delete(key);
+    }
+  }
+  if (!isClient) return;
+  try {
+    const toRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const storageItemKey = localStorage.key(i);
+      if (!storageItemKey?.startsWith('fc_cache_')) continue;
+      const cacheKey = storageItemKey.replace('fc_cache_', '');
+      if (cacheKeyAffected(cacheKey, urlPrefix)) {
+        toRemove.push(storageItemKey);
+      }
+    }
+    toRemove.forEach((k) => localStorage.removeItem(k));
+  } catch {
+    // ignore
   }
 }
 
@@ -151,39 +212,42 @@ export function getCachedData(url) {
 export function invalidateCache(urlPrefix) {
   cacheEpoch += 1;
   clearInFlightForPrefix(urlPrefix);
-
-  for (const key of [...memCache.keys()]) {
-    if (key === urlPrefix || key.startsWith(`${urlPrefix}?`) || key.startsWith(`${urlPrefix}/`)) {
-      memCache.delete(key);
-    }
-  }
-
-  if (!isClient) return;
-
-  try {
-    const toRemove = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const storageItemKey = localStorage.key(i);
-      if (!storageItemKey?.startsWith('fc_cache_')) continue;
-      const cacheKey = storageItemKey.replace('fc_cache_', '');
-      if (
-        cacheKey === urlPrefix ||
-        cacheKey.startsWith(`${urlPrefix}?`) ||
-        cacheKey.startsWith(`${urlPrefix}/`)
-      ) {
-        toRemove.push(storageItemKey);
-      }
-    }
-    toRemove.forEach((k) => localStorage.removeItem(k));
-  } catch {
-    // ignore
-  }
+  clearCacheForPrefix(urlPrefix);
+  notifyInvalidation(urlPrefix);
 }
 
 /** Drop cache and fetch fresh data (use after create/update/delete). */
 export async function refreshCache(url, options = {}) {
-  invalidateCache(url);
-  return cachedFetch(url, { ...options, forceRefresh: true });
+  clearInFlightForPrefix(url);
+  clearCacheKey(url);
+  notifyInvalidation(url);
+  return fetchAndStore(url, options, cacheEpoch);
+}
+
+async function syncCaches(keys) {
+  cacheEpoch += 1;
+  keys.forEach((k) => {
+    clearInFlightForPrefix(k);
+    clearCacheForPrefix(k);
+    notifyInvalidation(k);
+  });
+  const epoch = cacheEpoch;
+  await Promise.all(keys.map((k) => fetchAndStore(k, {}, epoch)));
+}
+
+/** Refresh all list caches after creating/updating a bill. */
+export async function syncAfterBillMutation() {
+  await syncCaches(['/api/bills', '/api/dashboard', '/api/account-holders']);
+}
+
+/** Refresh all list caches after creating/updating a payment. */
+export async function syncAfterPaymentMutation() {
+  await syncCaches([
+    '/api/payments',
+    '/api/bills',
+    '/api/dashboard',
+    '/api/account-holders',
+  ]);
 }
 
 export function useCachedFetch(url) {

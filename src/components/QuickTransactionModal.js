@@ -2,16 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '@/lib/api';
-import { invalidateCache } from '@/lib/fetchCache';
+import { syncAfterPaymentMutation } from '@/lib/fetchCache';
 import { suggestPaymentAmount } from '@/lib/loanUtils';
 import { useLanguage } from '@/components/LanguageContext';
-
-function invalidateAll() {
-  invalidateCache('/api/payments');
-  invalidateCache('/api/bills');
-  invalidateCache('/api/dashboard');
-  invalidateCache('/api/account-holders');
-}
 
 export default function QuickTransactionModal({ open, onClose }) {
   const { t, fmt, fmtDate } = useLanguage();
@@ -111,7 +104,7 @@ export default function QuickTransactionModal({ open, onClose }) {
         setSaving(false);
         return;
       }
-      invalidateAll();
+      await syncAfterPaymentMutation();
       onClose(true);
     } catch {
       setError(t('accountHolders.failedDelete'));

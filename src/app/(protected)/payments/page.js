@@ -1,5 +1,5 @@
 'use client';
-import { cachedFetch, invalidateCache } from '@/lib/fetchCache';
+import { syncAfterPaymentMutation } from '@/lib/fetchCache';
 import { apiFetch } from '@/lib/api';
 import { useCachedQuery } from '@/hooks/useCachedQuery';
 import { useLanguage } from '@/components/LanguageContext';
@@ -11,11 +11,7 @@ export default function PaymentsPage() {
   const handleDelete = async (id) => {
     if (!confirm(t('accountHolderDetail.deletePaymentConfirm'))) return;
     await apiFetch(`/api/payments/${id}`, { method: 'DELETE' });
-    invalidateCache('/api/payments');
-    invalidateCache('/api/dashboard');
-    invalidateCache('/api/bills');
-    invalidateCache('/api/account-holders');
-    refetch();
+    await syncAfterPaymentMutation();
   };
 
   if (isLoading) return <div className="loading-spinner"><div className="spinner"></div></div>;

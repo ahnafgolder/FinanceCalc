@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useLanguage } from '@/components/LanguageContext';
-import { invalidateCache } from '@/lib/fetchCache';
+import { syncAfterBillMutation, syncAfterPaymentMutation } from '@/lib/fetchCache';
 import { apiFetch } from '@/lib/api';
 import { useCachedQuery } from '@/hooks/useCachedQuery';
 
@@ -17,14 +17,6 @@ export default function BillDetail() {
   const [saving, setSaving] = useState(false);
   const { t, fmt, fmtDate } = useLanguage();
 
-  const refresh = () => {
-    invalidateCache('/api/payments');
-    invalidateCache('/api/bills');
-    invalidateCache('/api/dashboard');
-    invalidateCache('/api/account-holders');
-    refetch();
-  };
-
   const handlePayment = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -36,7 +28,8 @@ export default function BillDetail() {
     if (res.ok) {
       setShowPayment(false);
       setPayForm({ amount: '', paymentMethod: 'cash', referenceNumber: '', note: '', paymentDate: new Date().toISOString().split('T')[0] });
-      refresh();
+      await syncAfterPaymentMutation();
+      refetch();
     }
     setSaving(false);
   };
@@ -44,9 +37,7 @@ export default function BillDetail() {
   const handleDelete = async () => {
     if (!confirm(t('accountHolderDetail.deleteBillConfirm'))) return;
     await apiFetch(`/api/bills/${id}`, { method: 'DELETE' });
-    invalidateCache('/api/bills');
-    invalidateCache('/api/dashboard');
-    invalidateCache('/api/account-holders');
+    await syncAfterBillMutation();
     router.push('/bills');
   };
 
