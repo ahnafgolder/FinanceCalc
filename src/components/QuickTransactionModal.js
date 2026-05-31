@@ -70,7 +70,11 @@ export default function QuickTransactionModal({ open, onClose }) {
 
   useEffect(() => {
     const bill = bills.find((b) => b._id === billId);
-    if (!bill) return;
+    if (!bill) {
+      setNote('');
+      return;
+    }
+    setNote((bill.description || '').trim());
     apiFetch(`/api/bills/${billId}`)
       .then((r) => r.json())
       .then((data) => {
@@ -181,7 +185,9 @@ export default function QuickTransactionModal({ open, onClose }) {
                   <option value="">{t('accountHolderDetail.chooseBill')}</option>
                   {bills.map((b) => (
                     <option key={b._id} value={b._id}>
-                      {b.billNumber}{b.category === 'loan' ? ` (${t('loan.badge')})` : ''} — {fmt(b.totalAmount)}
+                      {b.billNumber}{b.category === 'loan' ? ` (${t('loan.badge')})` : ''}
+                      {b.description ? ` — ${b.description}` : ''}
+                      {' — '}{fmt(b.totalAmount)}
                     </option>
                   ))}
                 </select>
@@ -204,12 +210,14 @@ export default function QuickTransactionModal({ open, onClose }) {
           </div>
 
           <div className="form-group">
-            <label>{t('common.note')}</label>
-            <input
+            <label>{t('accountHolderDetail.statementNote')}</label>
+            <textarea
               className="form-control"
-              placeholder={t('quickTx.notePlaceholder')}
+              rows={2}
+              placeholder={billId ? t('accountHolderDetail.statementNotePlaceholder') : t('accountHolderDetail.chooseBill')}
               value={note}
               onChange={(e) => setNote(e.target.value)}
+              disabled={!billId}
             />
           </div>
 

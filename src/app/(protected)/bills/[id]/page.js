@@ -23,6 +23,18 @@ export default function BillDetail() {
     refetch();
   };
 
+  const openPaymentModal = () => {
+    const bill = data?.bill;
+    setPayForm({
+      amount: data?.remaining != null ? String(data.remaining) : '',
+      paymentMethod: 'cash',
+      referenceNumber: '',
+      note: (bill?.description || '').trim(),
+      paymentDate: new Date().toISOString().split('T')[0],
+    });
+    setShowPayment(true);
+  };
+
   const handlePayment = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -65,7 +77,7 @@ export default function BillDetail() {
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
           {b.status !== 'paid' && (
-            <button className="btn btn-primary btn-sm" onClick={() => setShowPayment(true)}>
+            <button className="btn btn-primary btn-sm" onClick={openPaymentModal}>
               💰 {b.type === 'receivable' ? t('billDetail.collectMoney') : t('billDetail.recordPayment')}
             </button>
           )}
@@ -204,7 +216,16 @@ export default function BillDetail() {
                 </div>
                 <div className="form-group"><label>{t('payments.reference')}</label><input className="form-control" value={payForm.referenceNumber} onChange={e => setPayForm({...payForm, referenceNumber: e.target.value})} /></div>
               </div>
-              <div className="form-group"><label>{t('accountHolders.notes')}</label><textarea className="form-control" value={payForm.note} onChange={e => setPayForm({...payForm, note: e.target.value})} /></div>
+              <div className="form-group">
+                <label>{t('accountHolderDetail.statementNote')}</label>
+                <textarea
+                  className="form-control"
+                  rows={3}
+                  placeholder={(data.bill.description || '').trim() || t('accountHolderDetail.noStatementNote')}
+                  value={payForm.note}
+                  onChange={e => setPayForm({ ...payForm, note: e.target.value })}
+                />
+              </div>
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
                 <button type="button" className="btn btn-secondary" onClick={() => setShowPayment(false)}>{t('common.cancel')}</button>
                 <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? t('common.saving') : (data.bill.type === 'receivable' ? t('billDetail.collectPayment') : t('accountHolderDetail.recordPayment'))}</button>

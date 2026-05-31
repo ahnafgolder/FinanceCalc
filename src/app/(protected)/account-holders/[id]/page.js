@@ -160,6 +160,51 @@ export default function AccountHolderDetail() {
   const h = data.holder;
   const unpaidBills = data.bills?.filter(b => b.status !== 'paid') || [];
   const primary = getPrimaryOutstanding(data);
+
+  const getBillRemaining = (bill) => {
+    if (!bill) return 0;
+    const paid = (data.payments || [])
+      .filter((p) => String(p.billId?._id || p.billId) === String(bill._id))
+      .reduce((s, p) => s + p.amount, 0);
+    return Math.max(0, bill.totalAmount - paid);
+  };
+
+  const applySelectedStatementToPayForm = (bill) => {
+    if (!bill) {
+      setPayForm((prev) => ({ ...prev, amount: '', note: '' }));
+      return;
+    }
+    const remaining = getBillRemaining(bill);
+    setPayForm((prev) => ({
+      ...prev,
+      amount: remaining > 0 ? String(remaining) : String(bill.totalAmount || ''),
+      note: (bill.description || '').trim(),
+    }));
+  };
+
+  const openPayModal = (preselectedBillId) => {
+    setPayError('');
+    const billId = preselectedBillId || '';
+    setPayBillId(billId);
+    const bill = billId ? unpaidBills.find((b) => b._id === billId) : null;
+    setPayForm({
+      amount: '',
+      paymentMethod: 'cash',
+      referenceNumber: '',
+      note: '',
+      paymentDate: new Date().toISOString().split('T')[0],
+    });
+    if (bill) applySelectedStatementToPayForm(bill);
+    setShowPayModal(true);
+  };
+
+  const handlePayBillSelect = (billId) => {
+    setPayBillId(billId);
+    const bill = unpaidBills.find((b) => b._id === billId);
+    applySelectedStatementToPayForm(bill);
+  };
+
+  const selectedPayBill = unpaidBills.find((b) => b._id === payBillId);
   const heroClass = primary.direction === 'owesMe' ? 'owes-me' : primary.direction === 'iOwe' ? 'i-owe' : 'settled';
 
   const handleCall = () => {
@@ -212,7 +257,7 @@ export default function AccountHolderDetail() {
             💬 {t('dashboard.shareWhatsApp')}
           </button>
           <button className="btn btn-primary btn-sm" onClick={() => setShowBillModal(true)}>📄 {t('accountHolderDetail.addBill')}</button>
-          <button className="btn btn-primary btn-sm" onClick={() => setShowPayModal(true)} style={{ background: 'linear-gradient(135deg, var(--success), #059669)', color: '#fff' }}>💰 {t('accountHolderDetail.addPayment')}</button>
+          <button className="btn btn-primary btn-sm" onClick={() => openPayModal()} style={{ background: 'linear-gradient(135deg, var(--success), #059669)', color: '#fff' }}>💰 {t('accountHolderDetail.addPayment')}</button>
           <button className="btn btn-secondary btn-sm" onClick={() => setEditing(!editing)}>{editing ? t('common.cancel') : `✏️ ${t('common.edit')}`}</button>
         </div>
       </div>
@@ -230,7 +275,7 @@ export default function AccountHolderDetail() {
           )}
           <div className="balance-hero-actions">
             {primary.direction !== 'settled' && unpaidBills.length > 0 && (
-              <button className="btn btn-primary" onClick={() => setShowPayModal(true)}>
+              <button className="btn btn-primary" onClick={() => openPayModal()}>
                 {primary.direction === 'owesMe' ? `💰 ${t('dashboard.collect')}` : `💸 ${t('dashboard.pay')}`}
               </button>
             )}
@@ -370,7 +415,7 @@ export default function AccountHolderDetail() {
       <div className="section">
         <div className="section-header">
           <h3>{t('accountHolderDetail.payments')} ({data.payments?.length || 0})</h3>
-          {unpaidBills.length > 0 && <button className="btn btn-sm" onClick={() => setShowPayModal(true)} style={{ background: 'linear-gradient(135deg, var(--success), #059669)', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 14px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>+ {t('accountHolderDetail.addPayment')}</button>}
+          {unpaidBills.length > 0 && <button className="btn btn-sm" onClick={() => openPayModal()} style={{ background: 'linear-gradient(135deg, var(--success), #059669)', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 14px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>+ {t('accountHolderDetail.addPayment')}</button>}
         </div>
         {data.payments?.length > 0 ? (
           <div className="card"><div className="table-container"><table>
@@ -462,10 +507,15 @@ export default function AccountHolderDetail() {
             <form onSubmit={handleAddPayment}>
               <div className="form-group">
                 <label>{t('accountHolderDetail.selectBill')} *</label>
-                <select className="form-control" value={payBillId} onChange={e => setPayBillId(e.target.value)} required>
+                <select className="form-control" value={payBillId} onChange={(e) => handlePayBillSelect(e.target.value)} required>
                   <option value="">{t('accountHolderDetail.chooseBill')}</option>
                   {unpaidBills.map(b => (
-                    <option key={b._id} value={b._id}>{b.billNumber} — {fmt(b.totalAmount)} ({b.status === 'paid' ? t('accountHolderDetail.statusPaid') : (b.status === 'unpaid' ? t('accountHolderDetail.statusUnpaid') : t('accountHolderDetail.statusPartial'))})</option>
+                    <option key={b._id} value={b._id}>
+                      {b.billNumber}
+                      {b.description ? ` — ${b.description}` : ''}
+                      {' — '}{fmt(b.totalAmount)}
+                      {' '}({b.status === 'paid' ? t('accountHolderDetail.statusPaid') : (b.status === 'unpaid' ? t('accountHolderDetail.statusUnpaid') : t('accountHolderDetail.statusPartial'))})
+                    </option>
                   ))}
                 </select>
               </div>
@@ -483,7 +533,20 @@ export default function AccountHolderDetail() {
                 </select></div>
                 <div className="form-group"><label>{t('payments.reference')}</label><input className="form-control" placeholder={t('accountHolderDetail.payRefPlaceholder')} value={payForm.referenceNumber} onChange={e => setPayForm({...payForm, referenceNumber: e.target.value})} /></div>
               </div>
-              <div className="form-group"><label>{t('accountHolders.notes')}</label><textarea className="form-control" value={payForm.note} onChange={e => setPayForm({...payForm, note: e.target.value})} /></div>
+              <div className="form-group">
+                <label>{t('accountHolderDetail.statementNote')}</label>
+                <textarea
+                  className="form-control"
+                  rows={3}
+                  placeholder={
+                    payBillId
+                      ? ((selectedPayBill?.description || '').trim() || t('accountHolderDetail.noStatementNote'))
+                      : t('accountHolderDetail.chooseBill')
+                  }
+                  value={payForm.note}
+                  onChange={e => setPayForm({ ...payForm, note: e.target.value })}
+                />
+              </div>
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
                 <button type="button" className="btn btn-secondary" onClick={() => setShowPayModal(false)}>{t('common.cancel')}</button>
                 <button type="submit" className="btn btn-primary" disabled={paySaving} style={{ background: 'linear-gradient(135deg, var(--success), #059669)' }}>{paySaving ? t('common.saving') : t('accountHolderDetail.recordPayment')}</button>
