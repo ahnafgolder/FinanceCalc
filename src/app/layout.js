@@ -1,6 +1,7 @@
 import './globals.css';
 import AuthProvider from '@/components/AuthProvider';
 import NativeShell from '@/components/NativeShell';
+import OfflineBanner from '@/components/OfflineBanner';
 
 export const metadata = {
   title: 'FinanceCalc — Billing & Payment Manager',
@@ -32,6 +33,7 @@ export default function RootLayout({ children }) {
       <body>
         <AuthProvider>
           <NativeShell />
+          <OfflineBanner />
           {children}
         </AuthProvider>
       </body>

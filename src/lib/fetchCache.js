@@ -8,6 +8,9 @@ const memCache = new Map();
 const inFlight = new Map();
 const listeners = new Map();
 
+/** Bumped on invalidate — in-flight writes from an older epoch are discarded. */
+let cacheEpoch = 0;
+
 const STALE_TIME = 5 * 60 * 1000; // 5 min — skip network if fresh
 const MAX_AGE = 60 * 60 * 1000; // 1 hr — still show stale while revalidating
 
@@ -15,15 +18,29 @@ function storageKey(key) {
   return `fc_cache_${key}`;
 }
 
+function isEntryValid(entry) {
+  if (!entry || entry.data === undefined) return false;
+  if (entry.epoch !== undefined && entry.epoch !== cacheEpoch) return false;
+  return true;
+}
+
 function getStorageItem(key) {
-  if (!isClient) return memCache.get(key);
+  if (!isClient) {
+    const entry = memCache.get(key);
+    return isEntryValid(entry) ? entry : null;
+  }
   try {
     const item = localStorage.getItem(storageKey(key));
-    if (item) return JSON.parse(item);
+    if (item) {
+      const entry = JSON.parse(item);
+      if (isEntryValid(entry)) return entry;
+      localStorage.removeItem(storageKey(key));
+    }
   } catch {
     // ignore quota / parse errors
   }
-  return memCache.get(key);
+  const entry = memCache.get(key);
+  return isEntryValid(entry) ? entry : null;
 }
 
 function setStorageItem(key, val) {
@@ -41,11 +58,20 @@ function notifyListeners(key, data) {
   if (subs) subs.forEach((fn) => fn(data));
 }
 
-async function fetchAndStore(key, options = {}) {
+function clearInFlightForPrefix(urlPrefix) {
+  for (const key of [...inFlight.keys()]) {
+    if (key === urlPrefix || key.startsWith(`${urlPrefix}?`) || key.startsWith(`${urlPrefix}/`)) {
+      inFlight.delete(key);
+    }
+  }
+}
+
+async function fetchAndStore(key, options = {}, epoch = cacheEpoch) {
   const res = await apiFetch(key, options);
   if (!res.ok) throw new Error('Fetch failed');
   const data = await res.json();
-  setStorageItem(key, { data, timestamp: Date.now() });
+  if (epoch !== cacheEpoch) return data;
+  setStorageItem(key, { data, timestamp: Date.now(), epoch: cacheEpoch });
   notifyListeners(key, data);
   return data;
 }
@@ -53,9 +79,12 @@ async function fetchAndStore(key, options = {}) {
 function revalidateInBackground(key, options = {}) {
   if (inFlight.has(key)) return inFlight.get(key);
 
-  const promise = fetchAndStore(key, options)
+  const epoch = cacheEpoch;
+  const promise = fetchAndStore(key, options, epoch)
     .catch(() => {})
-    .finally(() => inFlight.delete(key));
+    .finally(() => {
+      if (inFlight.get(key) === promise) inFlight.delete(key);
+    });
 
   inFlight.set(key, promise);
   return promise;
@@ -68,17 +97,22 @@ function revalidateInBackground(key, options = {}) {
  * - Optional onUpdate callback fires when fresh data arrives.
  */
 export async function cachedFetch(url, options = {}) {
-  const { onUpdate, ...fetchOptions } = options;
+  const { forceRefresh = false, onUpdate, ...fetchOptions } = options;
   const now = Date.now();
-  const entry = getStorageItem(url);
-  const hasCache = entry && entry.data !== undefined;
+
+  if (forceRefresh) {
+    clearInFlightForPrefix(url);
+  }
+
+  const entry = forceRefresh ? null : getStorageItem(url);
+  const hasCache = !!entry;
   const age = hasCache ? now - entry.timestamp : Infinity;
 
-  if (hasCache && age < STALE_TIME) {
+  if (!forceRefresh && hasCache && age < STALE_TIME) {
     return entry.data;
   }
 
-  if (hasCache && age < MAX_AGE) {
+  if (!forceRefresh && hasCache && age < MAX_AGE) {
     revalidateInBackground(url, fetchOptions).then((data) => {
       if (data !== undefined && onUpdate) onUpdate(data);
     });
@@ -91,7 +125,10 @@ export async function cachedFetch(url, options = {}) {
     return data;
   }
 
-  const promise = fetchAndStore(url, fetchOptions).finally(() => inFlight.delete(url));
+  const epoch = cacheEpoch;
+  const promise = fetchAndStore(url, fetchOptions, epoch).finally(() => {
+    if (inFlight.get(url) === promise) inFlight.delete(url);
+  });
   inFlight.set(url, promise);
   const data = await promise;
   if (onUpdate) onUpdate(data);
@@ -112,8 +149,13 @@ export function getCachedData(url) {
 }
 
 export function invalidateCache(urlPrefix) {
-  for (const key of memCache.keys()) {
-    if (key.startsWith(urlPrefix)) memCache.delete(key);
+  cacheEpoch += 1;
+  clearInFlightForPrefix(urlPrefix);
+
+  for (const key of [...memCache.keys()]) {
+    if (key === urlPrefix || key.startsWith(`${urlPrefix}?`) || key.startsWith(`${urlPrefix}/`)) {
+      memCache.delete(key);
+    }
   }
 
   if (!isClient) return;
@@ -124,7 +166,13 @@ export function invalidateCache(urlPrefix) {
       const storageItemKey = localStorage.key(i);
       if (!storageItemKey?.startsWith('fc_cache_')) continue;
       const cacheKey = storageItemKey.replace('fc_cache_', '');
-      if (cacheKey.startsWith(urlPrefix)) toRemove.push(storageItemKey);
+      if (
+        cacheKey === urlPrefix ||
+        cacheKey.startsWith(`${urlPrefix}?`) ||
+        cacheKey.startsWith(`${urlPrefix}/`)
+      ) {
+        toRemove.push(storageItemKey);
+      }
     }
     toRemove.forEach((k) => localStorage.removeItem(k));
   } catch {
@@ -132,6 +180,12 @@ export function invalidateCache(urlPrefix) {
   }
 }
 
+/** Drop cache and fetch fresh data (use after create/update/delete). */
+export async function refreshCache(url, options = {}) {
+  invalidateCache(url);
+  return cachedFetch(url, { ...options, forceRefresh: true });
+}
+
 export function useCachedFetch(url) {
-  return { cachedFetch, getCachedData, invalidateCache, prefetch };
+  return { cachedFetch, getCachedData, invalidateCache, refreshCache, prefetch };
 }

@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { prefetch } from '@/lib/fetchCache';
+import { hapticLight } from '@/lib/native';
 import { useLanguage } from './LanguageContext';
 
 const navItems = [
@@ -33,6 +34,7 @@ export default function BottomNav() {
             key={item.href}
             href={item.href}
             className={`bottom-nav-item ${isActive ? 'active' : ''}`}
+            onClick={() => hapticLight()}
           >
             <span className="bottom-nav-icon">{item.icon}</span>
             <span className="bottom-nav-label">{t(`sidebar.${item.key}`)}</span>

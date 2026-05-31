@@ -16,8 +16,10 @@ export function useCachedQuery(url, deps = []) {
 
   useEffect(() => {
     let cancelled = false;
+    const forceRefresh = tick > 0;
 
     cachedFetch(url, {
+      forceRefresh,
       onUpdate: (fresh) => {
         if (!cancelled) setData(fresh);
       },

@@ -1027,3 +1027,75 @@ textarea.form-control { resize: vertical; min-height: 80px; }
   border: 1px solid rgba(139, 92, 246, 0.3);
 }
 
+/* ── Offline banner (native + PWA) ── */
+.offline-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2000;
+  padding: 10px 16px;
+  padding-top: calc(10px + env(safe-area-inset-top));
+  background: rgba(239, 68, 68, 0.95);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: center;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+}
+.offline-banner--native {
+  font-size: 12px;
+}
+
+/* ── Capacitor Android: always use mobile shell (not desktop sidebar) ── */
+html.capacitor-native {
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+html.capacitor-native body {
+  overscroll-behavior: none;
+  touch-action: manipulation;
+}
+html.capacitor-native .sidebar {
+  display: none !important;
+}
+html.capacitor-native .bottom-nav {
+  display: flex;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: rgba(17, 24, 39, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--border-glass);
+  padding: 6px 0 calc(6px + env(safe-area-inset-bottom));
+  justify-content: space-around;
+  align-items: center;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4);
+}
+html.capacitor-native .main-content {
+  margin-left: 0;
+  padding: 16px 16px calc(90px + env(safe-area-inset-bottom));
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding-top: calc(16px + env(safe-area-inset-top));
+}
+html.capacitor-native .lang-toggle-btn {
+  position: fixed;
+  top: auto;
+  bottom: calc(70px + env(safe-area-inset-bottom));
+  right: 16px;
+  left: auto;
+  z-index: 999;
+}
+html.capacitor-native .quick-fab {
+  bottom: calc(78px + env(safe-area-inset-bottom));
+}
+html.capacitor-native .auth-page {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  min-height: 100dvh;
+}
+

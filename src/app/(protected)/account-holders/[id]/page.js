@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useLanguage } from '@/components/LanguageContext';
-import { invalidateCache } from '@/lib/fetchCache';
+import { invalidateCache, refreshCache } from '@/lib/fetchCache';
 import { apiFetch } from '@/lib/api';
 import { useCachedQuery } from '@/hooks/useCachedQuery';
 import { buildWhatsAppStatement, getPrimaryOutstanding, openWhatsAppShare } from '@/lib/ledger';
@@ -90,9 +90,9 @@ export default function AccountHolderDetail() {
       if (!res.ok) { setBillError(d.error); setBillSaving(false); return; }
       setShowBillModal(false);
       setBillForm({ category: 'bill', type: 'receivable', description: '', totalAmount: '', dueDate: '', installmentAmount: '', installmentFrequency: 'monthly', interestRate: '0', nextDueDate: '' });
-      invalidateCache('/api/bills');
       invalidateCache('/api/dashboard');
       invalidateCache('/api/account-holders');
+      await refreshCache('/api/bills');
       refresh();
     } catch { setBillError('Something went wrong'); }
     setBillSaving(false);

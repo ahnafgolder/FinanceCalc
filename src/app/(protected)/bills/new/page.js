@@ -3,7 +3,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useLanguage } from '@/components/LanguageContext';
-import { invalidateCache } from '@/lib/fetchCache';
+import { invalidateCache, refreshCache } from '@/lib/fetchCache';
 import { apiFetch } from '@/lib/api';
 
 function NewBillForm() {
@@ -71,10 +71,10 @@ function NewBillForm() {
         setSaving(false);
         return;
       }
-      invalidateCache('/api/bills');
       invalidateCache('/api/dashboard');
       invalidateCache('/api/account-holders');
-      router.push(`/bills/${data._id}`);
+      await refreshCache('/api/bills');
+      router.push(`/bills/${data._id}/`);
     } catch {
       setError(t('accountHolders.failedDelete'));
       setSaving(false);
