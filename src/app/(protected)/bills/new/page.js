@@ -3,7 +3,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useLanguage } from '@/components/LanguageContext';
-import { syncAfterBillCreate, refreshCachesAfterMutation } from '@/lib/fetchCache';
+import { afterDataMutation } from '@/lib/fetchCache';
 import { apiFetch } from '@/lib/api';
 
 function NewBillForm() {
@@ -71,8 +71,7 @@ function NewBillForm() {
         setSaving(false);
         return;
       }
-      syncAfterBillCreate(data, data.accountHolderId);
-      await refreshCachesAfterMutation(data.accountHolderId);
+      await afterDataMutation({ accountHolderId: data.accountHolderId, createdBill: data });
       router.push(`/bills/${data._id}`);
     } catch {
       setError(t('accountHolders.failedDelete'));

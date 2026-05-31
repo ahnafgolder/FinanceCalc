@@ -1,7 +1,8 @@
 'use client';
 import { useState } from 'react';
 import { apiFetch } from '@/lib/api';
-import { useSession, signOut } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
+import { signOutAndClearCache } from '@/lib/authClient';
 import { useLanguage } from '@/components/LanguageContext';
 
 export default function SettingsPage() {
@@ -146,7 +147,7 @@ export default function SettingsPage() {
         </p>
         <button
           className="btn btn-danger"
-          onClick={() => signOut({ callbackUrl: '/auth/signin' })}
+          onClick={() => signOutAndClearCache({ callbackUrl: '/auth/signin' })}
           style={{ width: '100%', justifyContent: 'center' }}
         >
           🚪 {t('sidebar.signOut')}

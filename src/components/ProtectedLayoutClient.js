@@ -8,6 +8,7 @@ import BottomNav from '@/components/BottomNav';
 import { QuickTransactionFab } from '@/components/QuickTransactionModal';
 import { LanguageProvider } from '@/components/LanguageContext';
 import LanguageToggle from '@/components/LanguageToggle';
+import CacheScopeSync from '@/components/CacheScopeSync';
 
 export default function ProtectedLayoutClient({ children }) {
   const { status } = useSession();
@@ -33,6 +34,7 @@ export default function ProtectedLayoutClient({ children }) {
 
   return (
     <LanguageProvider>
+      <CacheScopeSync />
       <div className="app-layout">
         <Sidebar />
         <main className="main-content">

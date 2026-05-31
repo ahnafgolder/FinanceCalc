@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useLanguage } from '@/components/LanguageContext';
-import { syncAfterBillCreate, refreshCachesAfterMutation } from '@/lib/fetchCache';
+import { afterDataMutation, clearAllCache } from '@/lib/fetchCache';
 import { apiFetch } from '@/lib/api';
 import { useCachedQuery } from '@/hooks/useCachedQuery';
 import { buildWhatsAppStatement, getPrimaryOutstanding, openWhatsAppShare } from '@/lib/ledger';
@@ -39,28 +39,22 @@ export default function AccountHolderDetail() {
   }, [data]);
 
   const refresh = async () => {
-    invalidateCache('/api/payments');
-    invalidateCache('/api/bills');
-    invalidateCache('/api/dashboard');
-    invalidateCache('/api/account-holders');
-    await refreshCachesAfterMutation(id);
+    await afterDataMutation({ accountHolderId: id });
     refetch();
   };
 
   const handleUpdate = async (e) => {
     e.preventDefault();
     await apiFetch(`/api/account-holders/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
-    invalidateCache('/api/account-holders');
-    invalidateCache('/api/dashboard');
     setEditing(false);
-    refresh();
+    await afterDataMutation({ accountHolderId: id });
+    refetch();
   };
 
   const handleDelete = async () => {
     if (!confirm(t('accountHolders.deleteConfirm'))) return;
     await apiFetch(`/api/account-holders/${id}`, { method: 'DELETE' });
-    invalidateCache('/api/account-holders');
-    invalidateCache('/api/dashboard');
+    clearAllCache();
     router.push('/account-holders');
   };
 
@@ -91,8 +85,8 @@ export default function AccountHolderDetail() {
       if (!res.ok) { setBillError(d.error); setBillSaving(false); return; }
       setShowBillModal(false);
       setBillForm({ category: 'bill', type: 'receivable', description: '', totalAmount: '', dueDate: '', installmentAmount: '', installmentFrequency: 'monthly', interestRate: '0', nextDueDate: '' });
-      syncAfterBillCreate(d, id);
-      await refreshCachesAfterMutation(id);
+      await afterDataMutation({ accountHolderId: id, createdBill: d });
+      refetch();
     } catch { setBillError('Something went wrong'); }
     setBillSaving(false);
   };
@@ -114,11 +108,8 @@ export default function AccountHolderDetail() {
       setShowPayModal(false);
       setPayForm({ amount: '', paymentMethod: 'cash', referenceNumber: '', note: '', paymentDate: new Date().toISOString().split('T')[0] });
       setPayBillId('');
-      invalidateCache('/api/payments');
-      invalidateCache('/api/bills');
-      invalidateCache('/api/dashboard');
-      invalidateCache('/api/account-holders');
-      refresh();
+      await afterDataMutation({ accountHolderId: id });
+      refetch();
     } catch { setPayError(t('accountHolders.failedDelete')); }
     setPaySaving(false);
   };
@@ -129,10 +120,8 @@ export default function AccountHolderDetail() {
     const res = await apiFetch(`/api/bills/${billId}`, { method: 'DELETE' });
     const d = await res.json();
     if (!res.ok) { alert(d.error); return; }
-    invalidateCache('/api/bills');
-    invalidateCache('/api/dashboard');
-    invalidateCache('/api/account-holders');
-    refresh();
+    await afterDataMutation({ accountHolderId: id, deletedBillIds: [billId] });
+    refetch();
   };
 
   // ── Delete Payment ──
@@ -140,11 +129,8 @@ export default function AccountHolderDetail() {
     if (!confirm(t('accountHolderDetail.deletePaymentConfirm'))) return;
     const res = await apiFetch(`/api/payments/${paymentId}`, { method: 'DELETE' });
     if (!res.ok) { alert('Failed to delete payment'); return; }
-    invalidateCache('/api/payments');
-    invalidateCache('/api/bills');
-    invalidateCache('/api/dashboard');
-    invalidateCache('/api/account-holders');
-    refresh();
+    await afterDataMutation({ accountHolderId: id, deletedPaymentIds: [paymentId] });
+    refetch();
   };
 
   // ── Generate Report ──
@@ -437,6 +423,9 @@ export default function AccountHolderDetail() {
                     <option value="receivable">{t('accountHolderDetail.billTypeDescR')}</option>
                     <option value="payable">{t('accountHolderDetail.billTypeDescP')}</option>
                   </select>
+                  <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '6px' }}>
+                    {billForm.type === 'receivable' ? t('accountHolderDetail.billTypeRHint') : t('accountHolderDetail.billTypePHint')}
+                  </p>
                 </div>
               ) : (
                 <div className="form-group">

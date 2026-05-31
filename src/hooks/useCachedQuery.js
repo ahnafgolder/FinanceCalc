@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { subscribeCacheScope } from '@/lib/cacheScope';
 import {
   cachedFetch,
   getCachedData,
@@ -18,17 +19,25 @@ export function useCachedQuery(url, deps = []) {
     try {
       const fresh = await refreshCache(url);
       if (fresh !== undefined) setData(fresh);
+      else setData(getCachedData(url));
     } catch {
-      // keep showing previous data on error
+      // keep previous data on error
     }
     setTick((n) => n + 1);
   }, [url]);
 
   useEffect(() => {
     const unsubscribe = subscribeCache(url, (fresh) => {
-      setData(fresh);
+      setData(fresh ?? null);
     });
     return unsubscribe;
+  }, [url]);
+
+  useEffect(() => {
+    return subscribeCacheScope(() => {
+      setData(getCachedData(url));
+      setTick((n) => n + 1);
+    });
   }, [url]);
 
   useEffect(() => {

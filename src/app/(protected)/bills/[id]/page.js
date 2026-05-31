@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useLanguage } from '@/components/LanguageContext';
-import { invalidateCache, refreshCachesAfterMutation } from '@/lib/fetchCache';
+import { afterDataMutation } from '@/lib/fetchCache';
 import { apiFetch } from '@/lib/api';
 import { useCachedQuery } from '@/hooks/useCachedQuery';
 
@@ -18,12 +18,8 @@ export default function BillDetail() {
   const { t, fmt, fmtDate } = useLanguage();
 
   const refresh = async () => {
-    invalidateCache('/api/payments');
-    invalidateCache('/api/bills');
-    invalidateCache('/api/dashboard');
-    invalidateCache('/api/account-holders');
-    const holderId = data?.bill?.accountHolderId?._id;
-    await refreshCachesAfterMutation(holderId);
+    const holderId = data?.bill?.accountHolderId?._id || data?.bill?.accountHolderId;
+    await afterDataMutation({ accountHolderId: holderId });
     refetch();
   };
 
@@ -45,10 +41,9 @@ export default function BillDetail() {
 
   const handleDelete = async () => {
     if (!confirm(t('accountHolderDetail.deleteBillConfirm'))) return;
+    const holderId = data?.bill?.accountHolderId?._id || data?.bill?.accountHolderId;
     await apiFetch(`/api/bills/${id}`, { method: 'DELETE' });
-    invalidateCache('/api/bills');
-    invalidateCache('/api/dashboard');
-    invalidateCache('/api/account-holders');
+    await afterDataMutation({ accountHolderId: holderId, deletedBillIds: [id] });
     router.push('/bills');
   };
 

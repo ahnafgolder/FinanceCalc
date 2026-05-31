@@ -1,6 +1,7 @@
 'use client';
 import { usePathname } from 'next/navigation';
-import { signOut, useSession } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
+import { signOutAndClearCache } from '@/lib/authClient';
 import Link from 'next/link';
 import { useLanguage } from './LanguageContext';
 
@@ -68,7 +69,7 @@ export default function Sidebar() {
         </div>
         <button
           className="sidebar-link"
-          onClick={() => signOut({ callbackUrl: '/auth/signin' })}
+          onClick={() => signOutAndClearCache({ callbackUrl: '/auth/signin' })}
           style={{ marginTop: '8px', color: 'var(--danger)' }}
         >
           <span className="icon">🚪</span>

@@ -1,5 +1,5 @@
 'use client';
-import { syncAfterPaymentMutation } from '@/lib/fetchCache';
+import { afterDataMutation } from '@/lib/fetchCache';
 import { apiFetch } from '@/lib/api';
 import { useCachedQuery } from '@/hooks/useCachedQuery';
 import { useLanguage } from '@/components/LanguageContext';
@@ -10,8 +10,14 @@ export default function PaymentsPage() {
 
   const handleDelete = async (id) => {
     if (!confirm(t('accountHolderDetail.deletePaymentConfirm'))) return;
+    const payment = (payments || []).find((p) => p._id === id);
+    const holderId = payment?.accountHolderId?._id || payment?.accountHolderId;
     await apiFetch(`/api/payments/${id}`, { method: 'DELETE' });
-    await syncAfterPaymentMutation();
+    await afterDataMutation({
+      accountHolderId: holderId,
+      deletedPaymentIds: [id],
+    });
+    refetch();
   };
 
   if (isLoading) return <div className="loading-spinner"><div className="spinner"></div></div>;
