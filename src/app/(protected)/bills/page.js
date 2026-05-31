@@ -26,7 +26,10 @@ export default function BillsPage() {
           <h2>{t('bills.title')}</h2>
           <p>{t('bills.subtitle')}</p>
         </div>
-        <Link href="/bills/new" className="btn btn-primary">{t('bills.newBill')}</Link>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <Link href="/bills/new" className="btn btn-primary">{t('bills.newBill')}</Link>
+          <Link href="/bills/new?category=loan" className="btn btn-secondary">{t('loan.newLoan')}</Link>
+        </div>
       </div>
 
       <div className="filters-bar">
@@ -55,7 +58,10 @@ export default function BillsPage() {
           <tbody>{bills.map(b => (
             <tr key={b._id} onClick={() => router.push(`/bills/${b._id}`)} style={{ cursor: 'pointer' }}>
               <td style={{ color: 'var(--accent)', fontWeight: 600 }}>{b.billNumber}</td>
-              <td className="hide-mobile"><span className={`badge badge-${b.type === 'receivable' ? 'success' : 'danger'}`}>{b.type === 'receivable' ? t('accountHolderDetail.billTypeR') : t('accountHolderDetail.billTypeP')}</span></td>
+              <td className="hide-mobile">
+                {b.category === 'loan' && <span className="badge badge-loan" style={{ marginRight: '6px' }}>{t('loan.badge')}</span>}
+                <span className={`badge badge-${b.type === 'receivable' ? 'success' : 'danger'}`}>{b.type === 'receivable' ? t('accountHolderDetail.billTypeR') : t('accountHolderDetail.billTypeP')}</span>
+              </td>
               <td>{b.accountHolderId?.name || '—'}</td>
               <td className="hide-mobile">{b.description || '—'}</td>
               <td>{fmt(b.totalAmount)}</td>

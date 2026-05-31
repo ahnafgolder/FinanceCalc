@@ -36,7 +36,6 @@ export default function BillDetail() {
     if (res.ok) {
       setShowPayment(false);
       setPayForm({ amount: '', paymentMethod: 'cash', referenceNumber: '', note: '', paymentDate: new Date().toISOString().split('T')[0] });
-      setLoading(true);
       refresh();
     }
     setSaving(false);
@@ -63,6 +62,7 @@ export default function BillDetail() {
         <div>
           <Link href="/bills" style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{t('billDetail.backLink')}</Link>
           <h2 style={{ marginTop: '8px' }}>{b.billNumber}</h2>
+          {b.category === 'loan' && <span className="badge badge-loan" style={{ marginRight: '8px' }}>{t('loan.badge')}</span>}
           <span className={`badge badge-${b.type === 'receivable' ? 'success' : 'danger'}`} style={{ marginRight: '8px' }}>{b.type === 'receivable' ? t('accountHolderDetail.billTypeR') : t('accountHolderDetail.billTypeP')}</span>
           <span className={`badge badge-${b.status}`}>{b.status === 'paid' ? t('accountHolderDetail.statusPaid') : (b.status === 'unpaid' ? t('accountHolderDetail.statusUnpaid') : t('accountHolderDetail.statusPartial'))}</span>
         </div>
@@ -90,6 +90,35 @@ export default function BillDetail() {
           <div className="stat-value" style={{ color: data.remaining > 0 ? 'var(--danger)' : 'var(--success)' }}>{fmt(data.remaining)}</div>
         </div>
       </div>
+
+      {b.category === 'loan' && (
+        <div className="card" style={{ marginBottom: '24px' }}>
+          <div className="detail-grid">
+            {b.installmentAmount > 0 && (
+              <div className="detail-item">
+                <div className="detail-label">{t('loan.installmentAmount')}</div>
+                <div className="detail-value">{fmt(b.installmentAmount)}</div>
+              </div>
+            )}
+            <div className="detail-item">
+              <div className="detail-label">{t('loan.installmentFrequency')}</div>
+              <div className="detail-value">{t(`loan.${b.installmentFrequency || 'flexible'}`)}</div>
+            </div>
+            {b.nextDueDate && b.status !== 'paid' && (
+              <div className="detail-item">
+                <div className="detail-label">{t('loan.nextDue')}</div>
+                <div className="detail-value" style={{ color: 'var(--accent)' }}>{fmtDate(b.nextDueDate)}</div>
+              </div>
+            )}
+            {b.interestRate > 0 && (
+              <div className="detail-item">
+                <div className="detail-label">{t('loan.interestRate')}</div>
+                <div className="detail-value">{b.interestRate}%</div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Progress bar */}
       <div className="card" style={{ marginBottom: '24px' }}>

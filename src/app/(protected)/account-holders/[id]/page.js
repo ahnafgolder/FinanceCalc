@@ -19,7 +19,7 @@ export default function AccountHolderDetail() {
 
   // Bill modal
   const [showBillModal, setShowBillModal] = useState(false);
-  const [billForm, setBillForm] = useState({ type: 'receivable', description: '', totalAmount: '', dueDate: '' });
+  const [billForm, setBillForm] = useState({ category: 'bill', type: 'receivable', description: '', totalAmount: '', dueDate: '', installmentAmount: '', installmentFrequency: 'monthly', interestRate: '0', nextDueDate: '' });
   const [billSaving, setBillSaving] = useState(false);
   const [billError, setBillError] = useState('');
 
@@ -73,12 +73,23 @@ export default function AccountHolderDetail() {
       const res = await apiFetch('/api/bills', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: billForm.type, accountHolderId: id, description: billForm.description, totalAmount: parseFloat(billForm.totalAmount), dueDate: billForm.dueDate || null }),
+        body: JSON.stringify({
+          category: billForm.category,
+          type: billForm.type,
+          accountHolderId: id,
+          description: billForm.description || (billForm.category === 'loan' ? 'Loan' : ''),
+          totalAmount: parseFloat(billForm.totalAmount),
+          dueDate: billForm.dueDate || billForm.nextDueDate || null,
+          nextDueDate: billForm.nextDueDate || billForm.dueDate || null,
+          installmentAmount: billForm.category === 'loan' && billForm.installmentAmount ? parseFloat(billForm.installmentAmount) : null,
+          installmentFrequency: billForm.category === 'loan' ? billForm.installmentFrequency : 'flexible',
+          interestRate: billForm.category === 'loan' ? parseFloat(billForm.interestRate || '0') : 0,
+        }),
       });
       const d = await res.json();
       if (!res.ok) { setBillError(d.error); setBillSaving(false); return; }
       setShowBillModal(false);
-      setBillForm({ type: 'receivable', description: '', totalAmount: '', dueDate: '' });
+      setBillForm({ category: 'bill', type: 'receivable', description: '', totalAmount: '', dueDate: '', installmentAmount: '', installmentFrequency: 'monthly', interestRate: '0', nextDueDate: '' });
       invalidateCache('/api/bills');
       invalidateCache('/api/dashboard');
       invalidateCache('/api/account-holders');
@@ -301,13 +312,13 @@ export default function AccountHolderDetail() {
                     : (isIn ? 'var(--success)' : 'var(--danger)');
                   return (
                     <div key={`${entry.kind}-${entry.id}`} className="ledger-item">
-                      <div className={`ledger-icon ${isBill ? 'charge' : isIn ? 'in' : 'out'}`}>
-                        {isBill ? '📄' : '💰'}
+                      <div className={`ledger-icon ${isBill ? (entry.category === 'loan' ? 'charge' : 'charge') : isIn ? 'in' : 'out'}`}>
+                        {isBill ? (entry.category === 'loan' ? '🤝' : '📄') : '💰'}
                       </div>
                       <div className="ledger-body">
                         <div className="ledger-title">
                           {isBill
-                            ? `${entry.billNumber}${entry.description ? ` — ${entry.description}` : ''}`
+                            ? `${entry.billNumber}${entry.category === 'loan' ? ` (${t('loan.badge')})` : ''}${entry.description ? ` — ${entry.description}` : ''}`
                             : `${entry.billNumber || t('payments.title')} ${entry.description ? `— ${entry.description}` : ''}`}
                         </div>
                         <div className="ledger-meta">{fmtDate(entry.date)}</div>
@@ -354,7 +365,10 @@ export default function AccountHolderDetail() {
             <tbody>{data.bills.map(b => (
               <tr key={b._id}>
                 <td style={{ color: 'var(--accent)', cursor: 'pointer' }} onClick={() => router.push(`/bills/${b._id}`)}>{b.billNumber}</td>
-                <td><span className={`badge badge-${b.type === 'receivable' ? 'success' : 'danger'}`}>{b.type === 'receivable' ? t('accountHolderDetail.billTypeR') : t('accountHolderDetail.billTypeP')}</span></td>
+                <td>
+                  {b.category === 'loan' && <span className="badge badge-loan" style={{ marginRight: '6px' }}>{t('loan.badge')}</span>}
+                  <span className={`badge badge-${b.type === 'receivable' ? 'success' : 'danger'}`}>{b.type === 'receivable' ? t('accountHolderDetail.billTypeR') : t('accountHolderDetail.billTypeP')}</span>
+                </td>
                 <td className="hide-mobile">{b.description || '—'}</td>
                 <td>{fmt(b.totalAmount)}</td>
                 <td className="hide-mobile">{b.dueDate ? fmtDate(b.dueDate) : '—'}</td>
@@ -410,6 +424,13 @@ export default function AccountHolderDetail() {
             <h3>{t('accountHolderDetail.addBillFor')} {h.name}</h3>
             {billError && <div className="auth-error">{billError}</div>}
             <form onSubmit={handleAddBill}>
+              <div className="form-group">
+                <label>{t('loan.recordType')}</label>
+                <select className="form-control" value={billForm.category} onChange={e => setBillForm({ ...billForm, category: e.target.value })}>
+                  <option value="bill">{t('loan.regularBill')}</option>
+                  <option value="loan">{t('loan.loanRecord')}</option>
+                </select>
+              </div>
               {h.type === 'both' ? (
                 <div className="form-group">
                   <label>{t('accountHolderDetail.billType')} *</label>
@@ -424,14 +445,20 @@ export default function AccountHolderDetail() {
                   <input className="form-control" value={h.type === 'client' ? t('accountHolderDetail.billTypeDescR') : t('accountHolderDetail.billTypeDescP')} disabled />
                 </div>
               )}
-              <div className="form-group"><label>{t('common.description')}</label><input className="form-control" placeholder={t('accountHolderDetail.billDescPlaceholder')} value={billForm.description} onChange={e => setBillForm({...billForm, description: e.target.value})} /></div>
+              <div className="form-group"><label>{t('common.description')}</label><input className="form-control" placeholder={billForm.category === 'loan' ? t('loan.loanDescPlaceholder') : t('accountHolderDetail.billDescPlaceholder')} value={billForm.description} onChange={e => setBillForm({...billForm, description: e.target.value})} /></div>
               <div className="form-row">
-                <div className="form-group"><label>{t('common.amount')} *</label><input className="form-control" type="number" step="0.01" min="0" placeholder="0.00" value={billForm.totalAmount} onChange={e => setBillForm({...billForm, totalAmount: e.target.value})} required /></div>
-                <div className="form-group"><label>{t('accountHolderDetail.dueDate')}</label><input className="form-control" type="date" value={billForm.dueDate} onChange={e => setBillForm({...billForm, dueDate: e.target.value})} /></div>
+                <div className="form-group"><label>{billForm.category === 'loan' ? t('loan.loanAmount') : t('common.amount')} *</label><input className="form-control" type="number" step="0.01" min="0" placeholder="0.00" value={billForm.totalAmount} onChange={e => setBillForm({...billForm, totalAmount: e.target.value})} required /></div>
+                <div className="form-group"><label>{billForm.category === 'loan' ? t('loan.firstDueDate') : t('accountHolderDetail.dueDate')}</label><input className="form-control" type="date" value={billForm.category === 'loan' ? billForm.nextDueDate : billForm.dueDate} onChange={e => billForm.category === 'loan' ? setBillForm({...billForm, nextDueDate: e.target.value, dueDate: e.target.value}) : setBillForm({...billForm, dueDate: e.target.value})} /></div>
               </div>
+              {billForm.category === 'loan' && (
+                <div className="form-row">
+                  <div className="form-group"><label>{t('loan.installmentAmount')}</label><input className="form-control" type="number" step="0.01" min="0" value={billForm.installmentAmount} onChange={e => setBillForm({...billForm, installmentAmount: e.target.value})} /></div>
+                  <div className="form-group"><label>{t('loan.installmentFrequency')}</label><select className="form-control" value={billForm.installmentFrequency} onChange={e => setBillForm({...billForm, installmentFrequency: e.target.value})}><option value="weekly">{t('loan.weekly')}</option><option value="monthly">{t('loan.monthly')}</option><option value="flexible">{t('loan.flexible')}</option></select></div>
+                </div>
+              )}
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
                 <button type="button" className="btn btn-secondary" onClick={() => setShowBillModal(false)}>{t('common.cancel')}</button>
-                <button type="submit" className="btn btn-primary" disabled={billSaving}>{billSaving ? t('common.saving') : t('accountHolderDetail.addBill')}</button>
+                <button type="submit" className="btn btn-primary" disabled={billSaving}>{billSaving ? t('common.saving') : (billForm.category === 'loan' ? t('loan.createLoan') : t('accountHolderDetail.addBill'))}</button>
               </div>
             </form>
           </div>

@@ -7,6 +7,7 @@ import Payment from '@/models/Payment';
 import mongoose from 'mongoose';
 import { jsonResponse } from '@/lib/apiResponse';
 import { getHoldersWithBalances, splitOwesMeAndIOwe } from '@/lib/holderBalances';
+import { enrichBillsWithRemaining } from '@/lib/billUtils';
 
 export async function GET() {
   try {
@@ -23,7 +24,7 @@ export async function GET() {
     weekEnd.setDate(weekEnd.getDate() + 7);
     weekEnd.setHours(23, 59, 59, 999);
 
-    const [holdersWithBalance, billAgg, paymentAgg, recentBills, recentPayments, dueThisWeek, overdueBills] =
+    const [holdersWithBalance, billAgg, paymentAgg, recentBills, recentPayments, dueThisWeek, overdueBills, activeLoansRaw] =
       await Promise.all([
         getHoldersWithBalances(userId),
 
@@ -106,7 +107,20 @@ export async function GET() {
           .populate('accountHolderId', 'name phone')
           .select('billNumber totalAmount dueDate type status accountHolderId')
           .lean(),
+
+        Bill.find({
+          userId,
+          category: 'loan',
+          status: { $ne: 'paid' },
+        })
+          .sort({ nextDueDate: 1, createdAt: -1 })
+          .limit(10)
+          .populate('accountHolderId', 'name phone')
+          .select('billNumber totalAmount nextDueDate dueDate type status category installmentAmount installmentFrequency accountHolderId')
+          .lean(),
       ]);
+
+    const activeLoans = await enrichBillsWithRemaining(activeLoansRaw);
 
     const { owesMe, iOwe } = splitOwesMeAndIOwe(holdersWithBalance);
     const b = billAgg[0] || { totalReceivable: 0, totalPayable: 0, totalBills: 0, unpaidBills: 0, monthReceivable: 0 };
@@ -127,11 +141,13 @@ export async function GET() {
         monthPaidOut: p.monthPaidOut,
         monthReceivable: b.monthReceivable,
         overdueCount: overdueBills.length,
+        activeLoansCount: activeLoans.length,
       },
       owesMe,
       iOwe,
       dueThisWeek,
       overdueBills,
+      activeLoans,
       recentBills,
       recentPayments,
     });

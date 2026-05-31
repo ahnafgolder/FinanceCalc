@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Sidebar from '@/components/Sidebar';
 import BottomNav from '@/components/BottomNav';
+import { QuickTransactionFab } from '@/components/QuickTransactionModal';
 import { LanguageProvider } from '@/components/LanguageContext';
 import LanguageToggle from '@/components/LanguageToggle';
 
@@ -39,6 +40,7 @@ export default function ProtectedLayoutClient({ children }) {
           {children}
         </main>
         <BottomNav />
+        <QuickTransactionFab />
       </div>
     </LanguageProvider>
   );

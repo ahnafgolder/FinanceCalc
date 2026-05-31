@@ -11,6 +11,8 @@ export function buildLedger(bills = [], payments = [], holderType = 'client') {
       billType: b.type,
       status: b.status,
       dueDate: b.dueDate,
+      category: b.category || 'bill',
+      installmentAmount: b.installmentAmount,
     })),
     ...payments.map((p) => ({
       id: p._id,

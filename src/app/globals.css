@@ -973,3 +973,57 @@ textarea.form-control { resize: vertical; min-height: 80px; }
   .balance-hero-amount { font-size: 28px; }
 }
 
+.quick-fab {
+  position: fixed;
+  right: 20px;
+  bottom: calc(78px + env(safe-area-inset-bottom));
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, var(--accent), #d97706);
+  color: #0a0e1a;
+  font-size: 24px;
+  box-shadow: 0 8px 24px rgba(245, 158, 11, 0.4);
+  cursor: pointer;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+}
+.quick-fab:hover { transform: scale(1.05); }
+
+.quick-mode-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.quick-mode-toggle button {
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-glass);
+  background: var(--bg-glass);
+  color: var(--text-secondary);
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.quick-mode-toggle button.active.collect {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.4);
+  color: var(--success);
+}
+.quick-mode-toggle button.active.pay {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: var(--danger);
+}
+
+.badge-loan {
+  background: rgba(139, 92, 246, 0.15);
+  color: #a78bfa;
+  border: 1px solid rgba(139, 92, 246, 0.3);
+}
+

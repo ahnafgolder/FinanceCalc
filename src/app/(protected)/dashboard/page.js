@@ -42,6 +42,7 @@ export default function Dashboard() {
   const iOwe = data?.iOwe || [];
   const dueThisWeek = data?.dueThisWeek || [];
   const overdueBills = data?.overdueBills || [];
+  const activeLoans = data?.activeLoans || [];
 
   return (
     <>
@@ -135,6 +136,39 @@ export default function Dashboard() {
           )}
         </div>
       </div>
+
+      {activeLoans.length > 0 && (
+        <div className="card" style={{ marginBottom: '24px' }}>
+          <div className="section-header">
+            <div>
+              <h3>{t('dashboard.activeLoans')}</h3>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>{t('dashboard.activeLoansSub')}</p>
+            </div>
+            <Link href="/bills" className="btn btn-secondary btn-sm">{t('dashboard.viewAll')}</Link>
+          </div>
+          <div className="action-list">
+            {activeLoans.map((loan) => (
+              <div key={loan._id} className="action-row" onClick={() => router.push(`/bills/${loan._id}`)}>
+                <div>
+                  <div className="action-row-name">
+                    {loan.accountHolderId?.name || '—'}
+                    <span className="badge badge-loan" style={{ marginLeft: '8px' }}>{t('loan.badge')}</span>
+                  </div>
+                  <div className="action-row-sub">
+                    {loan.billNumber}
+                    {loan.nextDueDate ? ` · ${t('loan.nextDue')}: ${fmtDate(loan.nextDueDate)}` : ''}
+                    {loan.installmentAmount ? ` · ${t('dashboard.nextInstallment')}: ${fmt(loan.installmentAmount)}` : ''}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div className="action-row-amount negative">{fmt(loan.remaining ?? loan.totalAmount)}</div>
+                  <div className="action-row-sub">{t('loan.remaining')}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="card" style={{ marginBottom: '24px' }}>
         <div className="section-header">

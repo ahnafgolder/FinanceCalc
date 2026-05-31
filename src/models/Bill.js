@@ -42,6 +42,30 @@ const BillSchema = new mongoose.Schema({
     enum: ['unpaid', 'partial', 'paid'],
     default: 'unpaid',
   },
+  category: {
+    type: String,
+    enum: ['bill', 'loan'],
+    default: 'bill',
+  },
+  installmentAmount: {
+    type: Number,
+    default: null,
+    min: 0,
+  },
+  installmentFrequency: {
+    type: String,
+    enum: ['weekly', 'monthly', 'flexible'],
+    default: 'flexible',
+  },
+  interestRate: {
+    type: Number,
+    default: 0,
+    min: 0,
+  },
+  nextDueDate: {
+    type: Date,
+    default: null,
+  },
   createdAt: {
     type: Date,
     default: Date.now,
@@ -52,5 +76,6 @@ BillSchema.index({ userId: 1, status: 1 });
 BillSchema.index({ userId: 1, accountHolderId: 1 });
 BillSchema.index({ userId: 1, createdAt: -1 });
 BillSchema.index({ accountHolderId: 1, type: 1 });
+BillSchema.index({ userId: 1, category: 1, status: 1 });
 
 export default mongoose.models.Bill || mongoose.model('Bill', BillSchema);
